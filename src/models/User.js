@@ -29,6 +29,12 @@ const UserSchema = new mongoose.Schema({
     default: 1500, // Example starting rating (like ELO)
     min: 0,
   },
+  coins: {
+    type: Number,
+    required: true,
+    default: 100, // Example starting rating (like ELO)
+    min: 0,
+  },
   numberOfFriends: {
     type: Number,
     required: true,

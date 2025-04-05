@@ -92,43 +92,79 @@ export async function POST(request) {
 export async function GET(request) {
   try {
     // 1. Get username from query parameters
-    // The 'request' object contains URL details
     const { searchParams } = new URL(request.url);
-    const username = searchParams.get('username'); // Get 'username' query param
+    const username = searchParams.get('username');
 
-    // 2. Validate input: Check if username parameter is provided
+    // 2. Validate input
     if (!username) {
       return NextResponse.json(
         { success: false, error: 'Missing required query parameter: username' },
-        { status: 400 } // Bad Request
+        { status: 400 }
       );
     }
 
     // 3. Connect to DB
     await dbConnect();
 
-    // 4. Query the database for games involving the user
-    // Find games where the username matches either player1 or player2
-    const games = await Game.find({
-      $or: [                     // Use the $or operator
-        { username1: username }, // Check if user is player 1
-        { username2: username }  // Check if user is player 2
+    // 4. Query the database for raw game data involving the user
+    // Select fields necessary for the transformation + any others needed
+    const rawGames = await Game.find({
+      $or: [
+        { username1: username },
+        { username2: username }
       ]
-    }).sort({ createdAt: -1 }); // Optional: Sort by newest games first
+    })
+    .select('gameid username1 username2 user1rating user2rating winnerusername seconds createdAt') // Select only needed fields
+    .sort({ createdAt: -1 }); // Sort by newest games first
 
-    // 5. Return the results
-    // It's good practice to indicate if no games were found, even if it's an empty array
+    // 5. Transform the raw game data into a frontend-friendly format
+    const gameHistory = rawGames.map(game => {
+      let opponentUsername, opponentRating, userRating, result;
+
+      // Determine opponent and ratings based on who the requesting user is
+      if (game.username1 === username) {
+        opponentUsername = game.username2;
+        opponentRating = game.user2rating;
+        userRating = game.user1rating;
+      } else { // The user must be username2
+        opponentUsername = game.username1;
+        opponentRating = game.user1rating;
+        userRating = game.user2rating;
+      }
+
+      // Determine the result from the user's perspective
+      if (game.winnerusername === null) {
+        result = 'draw'; // Or 'ongoing' if you have such a status
+      } else if (game.winnerusername === username) {
+        result = 'win';
+      } else {
+        result = 'loss';
+      }
+
+      // Return the transformed object for this game
+      return {
+        gameId: game.gameid,
+        opponentUsername: opponentUsername,
+        opponentRating: opponentRating,
+        userRating: userRating,       // User's rating in that specific game
+        result: result,               // 'win', 'loss', or 'draw'
+        durationSeconds: game.seconds,// Include duration if useful
+        playedAt: game.createdAt      // Include when the game was created/played
+      };
+    });
+
+    // 6. Return the transformed results
     return NextResponse.json(
-        { success: true, count: games.length, data: games }, // Include count for clarity
-        { status: 200 } // OK
+        { success: true, count: gameHistory.length, data: gameHistory }, // Return the transformed array
+        { status: 200 }
     );
 
   } catch (error) {
-    // 6. Handle potential errors
+    // 7. Handle potential errors
     console.error("GET /api/games?username=... error:", error);
     return NextResponse.json(
-        { success: false, error: 'Server Error fetching games for user' },
-        { status: 500 } // Internal Server Error
+        { success: false, error: 'Server Error fetching game history for user' },
+        { status: 500 }
     );
   }
 }
