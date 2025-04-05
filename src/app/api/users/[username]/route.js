@@ -7,7 +7,7 @@ import User from '@/models/User';
 export async function GET(request, { params }) {
   // The { params } object is automatically populated by Next.js
   // with the dynamic route segments.
-  const { username } = params;
+  const { username } = await params;
 
   if (!username) {
     return NextResponse.json(
