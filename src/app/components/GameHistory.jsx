@@ -60,16 +60,16 @@ const gameHistoryData = [
 ];
 
 // --- Helper Player Info Component (Adapted for Theme) ---
-const PlayerInfo = ({ player }) => {
-    const StatusIcon = player.statusIcon;
+const PlayerInfo = ({ player, rating }) => {
+    // const StatusIcon = player.statusIcon;
 
     
 
     return (
         <div className="flex items-center space-x-1.5 text-sm mb-0.5">
             <span className={`inline-block w-2 h-2 rounded-sm ${player.color} flex-shrink-0`}></span>
-            {player.title && <span className="font-semibold text-orange-400 text-xs flex-shrink-0">{player.title}</span>}
-            <span className="text-gray-200 truncate flex-grow min-w-0" title={player.name}>{player.name} <span className="text-gray-400 text-xs flex-shrink-0">({player.rating})</span></span>
+            {player==localStorage.getItem("username") && <span className="font-semibold text-orange-400 text-xs flex-shrink-0">NM</span>}
+            <span className="text-gray-200 truncate flex-grow min-w-0" title={player}>{player} <span className="text-gray-400 text-xs flex-shrink-0">({rating})</span></span>
             
          
             {/* {StatusIcon && <StatusIcon className="w-3 h-3 text-gray-400 flex-shrink-0" />} */}
@@ -85,6 +85,12 @@ const GameHistory = () => {
   // Mock user data for header (replace with actual context/props)
   const [username, setUsername] = useState('SpaceExplorer');
   const [coins, setCoins] = useState(1250);
+
+  useEffect(()=>{
+
+    fetch(`/api/games?username=${localStorage.getItem("username")}`).then(e=>e.json()).then(e=>setData(e.data));
+  },[])
+  const [data, setData] = useState([])
 
   useEffect(() => {
     const generateStars = () => {
@@ -154,18 +160,18 @@ const GameHistory = () => {
                         </div>
 
                         {/* Game Rows */}
-                        {gameHistoryData.map((game) => {
-                            const OutcomeIcon = game.result.outcomeIcon;
+                        {data.map((game) => {
+                 
                             return (
-                                <div key={game.id} className="flex flex-col md:flex-row items-stretch md:items-center px-4 py-3 hover:bg-purple-900/20 transition-colors duration-150 space-y-3 md:space-y-0 md:space-x-4">
+                                <div key={game.gameId} className="flex flex-col md:flex-row items-stretch md:items-center px-4 py-3 hover:bg-purple-900/20 transition-colors duration-150 space-y-3 md:space-y-0 md:space-x-4">
 
                                     {/* Players Column */}
                                     <div className="flex-1 min-w-0 md:min-w-[250px]"> {/* min-w-0 needed for truncation */}
                                          {/* Mobile Header (Optional) */}
                                          <span className="md:hidden text-xs text-gray-400 uppercase font-semibold mr-2">Players:</span>
                                          <div className="mt-1 md:mt-0">
-                                             <PlayerInfo player={game.player1} />
-                                             <PlayerInfo player={game.player2} />
+                                             <PlayerInfo player={localStorage.getItem("username")}  rating={game.userRating}/>
+                                             <PlayerInfo player={game.opponentUsername} rating={game.opponentRating}/>
                                          </div>
                                     </div>
 
@@ -174,10 +180,10 @@ const GameHistory = () => {
                                         <span className="md:hidden text-xs text-gray-400 uppercase font-semibold w-16 flex-shrink-0">Result:</span>
                                         <div className="flex items-center justify-center space-x-2">
                                             <div className="flex flex-col items-center text-sm">
-                                                <span className="text-white font-medium">{game.result.p1Score}</span>
-                                                <span className="text-gray-300">{game.result.p2Score}</span>
+                                                <span className="text-white font-medium">{game.result=="win"?1:0}</span>
+                                                <span className="text-gray-300">{game.result=="win"?0:1}</span>
                                             </div>
-                                            <OutcomeIcon className={`w-4 h-4 ${game.result.outcomeColor}`} />
+                                            {/* <OutcomeIcon className={`w-4 h-4 ${game.result.outcomeColor}`} /> */}
                                         </div>
                                     </div>
 
@@ -185,7 +191,7 @@ const GameHistory = () => {
                                     <div className="w-full md:w-20 text-left md:text-center flex-shrink-0 flex items-center">
                                         <span className="md:hidden text-xs text-gray-400 uppercase font-semibold w-16 flex-shrink-0">Time:</span>
                                         <span className="text-sm text-white flex items-center justify-center w-full">
-                                             <FaRegClock className="mr-1.5 text-blue-300 opacity-80"/> {game.timeTaken}
+                                             <FaRegClock className="mr-1.5 text-blue-300 opacity-80"/> {game.durationSeconds}
                                          </span>
                                     </div>
 
@@ -200,7 +206,7 @@ const GameHistory = () => {
                                     {/* Date Column */}
                                     <div className="w-full md:w-24 text-left md:text-right flex-shrink-0 flex items-center">
                                           <span className="md:hidden text-xs text-gray-400 uppercase font-semibold w-16 flex-shrink-0">Date:</span>
-                                          <span className="text-sm text-gray-400 w-full text-left md:text-right">{game.date}</span>
+                                          <span className="text-sm text-gray-400 w-full text-left md:text-right">{(new Date(game.playedAt)).toDateString()}</span>
                                     </div>
                                 </div>
                             );
