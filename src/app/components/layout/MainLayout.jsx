@@ -1,22 +1,32 @@
 "use client"
 // components/layout/MainLayout.jsx
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import Navbar from './Navbar';
 import Sidebar from './Sidebar';
 import StarBackground from './StarBackground';
 import { AnimatePresence } from 'framer-motion'; // Import AnimatePresence
 
 // Mock user data (replace later)
-const mockUserData = {
-    username: 'CosmicRacer',
-    coins: 1337,
-};
+// const userData = ;
 
 const MainLayout = ({ children }) => {
+
+  useEffect(()=>{
+    const userName = localStorage.getItem("username");
+    fetch(`/api/users/${userName}`).then(e=>e.json()).then(e=>{
+      console.log(e);
+      setUserData(e.data);
+      
+    })
+  },[]);
+  const [userData, setUserData] = useState({
+    username: 'Loading..',
+    coins: 0,
+})
   return (
     <div className="min-h-screen bg-gray-900 text-white flex flex-col">
       <StarBackground />
-      <Navbar username={mockUserData.username} coins={mockUserData.coins} />
+      <Navbar username={userData.username} coins={userData.coins} />
 
       <div className="flex flex-1 overflow-hidden">
         <Sidebar />
