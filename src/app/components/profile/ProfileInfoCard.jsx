@@ -30,6 +30,8 @@ const ProfileInfoCard = () => {
         .then((e) => e.json())
         .then((e) => {
           if (e.success && e.data) {
+            console.log(e.data);
+
             // Assuming API returns data with an 'image' field
             setUserData({
               username: e.data.username || 'N/A',
@@ -37,8 +39,11 @@ const ProfileInfoCard = () => {
               rating: e.data.rating, // Adjust field names as per your API response
               title: e.data.title,
               rank: e.data.rank,
+              numberOfFriends:e.data.numberOfFriends,
               image: e.data.image // Use the 'image' field from API response
             });
+
+            
           } else {
              console.error("Failed to fetch user data:", e.message);
              // Handle error state appropriately
@@ -82,7 +87,7 @@ const ProfileInfoCard = () => {
             </div>
             <div className="flex items-center col-span-2 sm:col-span-1">
               <FaCalendarAlt className="mr-2 text-blue-400" />
-              <span>Joined: <span className="font-semibold text-white">{new Date(userData.createdAt).toLocaleDateString()}</span></span>
+              <span>Joined: <span className="font-semibold text-white">{new Date(userData.joinDate).toLocaleDateString()}</span></span>
             </div>
              {/* Add more stats like Wins/Losses, Accuracy etc. here */}
              <div className="flex items-center">

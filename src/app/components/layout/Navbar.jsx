@@ -9,6 +9,8 @@ import { useSession, signOut } from 'next-auth/react';
 
 const Navbar = () => {
   const { data: session } = useSession();
+  console.log(session);
+  
   
   return (
     <header className="bg-gray-800/80 backdrop-blur-sm border-b border-purple-500/30 p-4 flex items-center justify-between shrink-0 relative z-20">
@@ -44,7 +46,11 @@ const Navbar = () => {
               {session?.user?.username || 'Guest'}
             </span>
             <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-full bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center group-hover:scale-110 transition-transform">
-              <FaUser className="text-white text-sm sm:text-base" />
+                        {session?.user?.image? ( // Check userData.image
+                          <img src={session?.user?.image} alt="User Avatar" className="w-full h-full object-cover" /> // Use userData.image
+                        ) : (
+                          <FaUser className="text-white text-5xl" />
+                        )}
             </div>
           </Link>
           <button
