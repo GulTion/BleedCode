@@ -17,11 +17,11 @@ const UserSchema = new mongoose.Schema({
   },
   password: {
     type: String,
+    // Password might not be required if using OAuth exclusively for some users
+    // Consider conditional requirement or handling this in the auth logic
     required: [true, 'Please provide a password.'],
     minlength: [8, 'Password must be at least 8 characters'],
-    // IMPORTANT: Remember to HASH passwords before saving using libraries like bcrypt
-    // Do NOT store plain text passwords. Mongoose 'select: false' can hide it by default
-    // select: false,
+    // select: false, // Good practice to not select password by default
   },
   rating: {
     type: Number,
@@ -64,10 +64,30 @@ const UserSchema = new mongoose.Schema({
     match: [/.+@.+\..+/, 'Please provide a valid email address'],
     trim: true,
   },
+  emailVerified: { // Added for OAuth
+    type: Date,
+    default: null,
+  },
+  image: { // Added for OAuth profile picture
+    type: String,
+    default: null,
+  },
+  authProvider: { // Added to track signup method
+    type: String,
+    enum: ['credentials', 'google'], // Add other providers as needed
+    default: 'credentials',
+  },
   // lastLogin: Date,
 });
 
 // Optional: Add pre-save hook here for password hashing if needed
+// Example: Hashing password only if it's modified and provider is 'credentials'
+// UserSchema.pre('save', async function (next) {
+//   if (!this.isModified('password') || this.authProvider !== 'credentials') return next();
+//   // Hash password logic here (e.g., using bcrypt)
+//   // const salt = await bcrypt.genSalt(10);
+//   // this.password = await bcrypt.hash(this.password, salt);
+//   next();
+// });
 
-// Prevent model overwrite during hot-reloading
 export default mongoose.models.User || mongoose.model('User', UserSchema);

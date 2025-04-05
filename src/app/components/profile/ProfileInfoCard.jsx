@@ -13,26 +13,51 @@ import { FaUser, FaCalendarAlt, FaTrophy, FaStar, FaUserFriends } from 'react-ic
 // };
 
 const ProfileInfoCard = () => {
-  useEffect(()=>{
-    const userName = localStorage.getItem("username");
-    fetch(`/api/users/${userName}`).then(e=>e.json()).then(e=>{
-      console.log(e);
-      setUserData(e.data);
-      
-    })
-  },[]);
   const [userData, setUserData] = useState({
-    username: 'Loading..',
-    coins: 0,
-})
+    username: 'Loading...',
+    joinDate: '',
+    rating: null,
+    title: '',
+    rank: null,
+    image: null // Changed from avatarUrl to image to match session/db
+  });
+
+  useEffect(() => {
+    // Consider using useSession() hook here for better integration
+    const userName = localStorage.getItem("username");
+    if (userName) {
+      fetch(`/api/users/${userName}`)
+        .then((e) => e.json())
+        .then((e) => {
+          if (e.success && e.data) {
+            // Assuming API returns data with an 'image' field
+            setUserData({
+              username: e.data.username || 'N/A',
+              joinDate: e.data.createdAt ? new Date(e.data.createdAt).toLocaleDateString() : 'N/A',
+              rating: e.data.rating, // Adjust field names as per your API response
+              title: e.data.title,
+              rank: e.data.rank,
+              image: e.data.image // Use the 'image' field from API response
+            });
+          } else {
+             console.error("Failed to fetch user data:", e.message);
+             // Handle error state appropriately
+          }
+        })
+        .catch(error => {
+            console.error("Error fetching user data:", error);
+            // Handle fetch error state
+        });
+    }
+  }, []);
 
   return (
     <div className="bg-gray-800/70 backdrop-blur-md border border-purple-500/30 rounded-xl p-6 mb-8 shadow-lg">
       <div className="flex flex-col sm:flex-row items-center sm:items-start space-y-4 sm:space-y-0 sm:space-x-6">
         {/* Avatar */}
-        <div className="w-24 h-24 sm:w-32 sm:h-32 rounded-full bg-gradient-to-br from-blue-600 to-purple-700 flex items-center justify-center border-2 border-purple-400 shadow-md shrink-0">
-          {userData.avatarUrl ? (
-            <img src={userData.avatarUrl} alt="User Avatar" className="w-full h-full rounded-full object-cover" />
+        <div className="w-24 h-24 sm:w-32 sm:h-32 rounded-full bg-gradient-to-br from-blue-600 to-purple-700 flex items-center justify-center border-2 border-purple-400 shadow-md shrink-0 overflow-hidden">
+          {userData.image ? ( // Check userData.image
+            <img src={userData.image} alt="User Avatar" className="w-full h-full object-cover" /> // Use userData.image
           ) : (
             <FaUser className="text-white text-5xl" />
           )}
