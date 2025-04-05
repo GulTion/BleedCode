@@ -16,7 +16,7 @@ import { stateMakerFromDiff } from '@/app/utils/stateDiff';
 const LeaderboardPage = () => {
   let {gameId} = useParams()
   useEffect(()=>{
-    fetch(`/api/games/${gameId}/review`).then(e=>e.json()).then(e=>{
+    fetch(`/api/games/${gameId}/review?username=${localStorage.getItem("username")}`).then(e=>e.json()).then(e=>{
 
       let allSolution = findHundredSolutions(e.data.digits);
       let states = stateMakerFromDiff(e.data.digits, e.data.state);

@@ -40,6 +40,6 @@ gameStateSchema.pre('save', async function (next) {
 });
 
 // Create a compound index for faster queries
-gameStateSchema.index({ gameId: 1 });
+gameStateSchema.index({ gameId: 1 ,username:1});
 
 export default mongoose.models.GameState || mongoose.model('GameState', gameStateSchema);

@@ -11,11 +11,7 @@ const server = http.createServer(app);
 // Replace 'http://localhost:3000' with your actual frontend URL if different
 const io = new Server(server, {
     cors: {
-      // Pass an array of allowed origins
-      origin: [
-          "http://localhost:3000",        // Allow localhost
-          "http://192.168.17.138:3000"  // Allow specific local network IP
-      ],
+      origin: "*", // Allow all origins
       methods: ["GET", "POST"], // Specify allowed HTTP methods
       // credentials: true // Add this if you need to handle cookies or authorization headers
     }

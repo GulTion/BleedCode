@@ -42,3 +42,4 @@ yarn-error.log*
 next-env.d.ts
 ws-backend/node_modules/.package-lock.json
 node_modules
+package-lock.json

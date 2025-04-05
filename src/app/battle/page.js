@@ -22,10 +22,12 @@ import {
 import { CSS } from '@dnd-kit/utilities';
 import { useSearchParams } from 'next/navigation';
 import io from 'socket.io-client'; // Base import for socket.io client
+import { useRouter } from 'next/navigation'; // Import for navigation
+import { stateDiffMakerFromState } from '../utils/stateDiff';
 // Socket type import removed for JS
 
 // --- Constants ---
-const SOCKET_SERVER_URL = "http://192.168.17.138:4000"; // Matches your server setup
+const SOCKET_SERVER_URL = "http://192.168.17.26:4000"; // Matches your server setup
 
 // --- Components ---
 
@@ -114,6 +116,8 @@ function arraysEqual(a, b) {
 
 // --- Main Game Component (JavaScript Version) ---
 export default function EquationGame() {
+  const [states, setState] = useState([]);
+  const router = useRouter(); // Router instance for navigation
   const searchParams = useSearchParams();
   // --- Socket.IO Ref ---
   const socketRef = useRef(null); // Holds the socket connection (no type hint)
@@ -124,6 +128,9 @@ export default function EquationGame() {
   const [spectatingPlayerId, setSpectatingPlayerId] = useState(null); // ID of player being watched (null initially)
   const [isSpectator, setIsSpectator] = useState(false); // Is this client a spectator?
   const [isConnected, setIsConnected] = useState(false); // Socket connection status
+
+  const [timeLeft, setTimeLeft] = useState(15); // Timer state
+  const [isTimeUp, setIsTimeUp] = useState(false); // Timer end state
 
   // Initial numbers setup (using useRef as it's static based on component load)
   const initialNumbers = useRef([
@@ -137,6 +144,7 @@ export default function EquationGame() {
 
   const [equation, setEquation] = useState([...initialNumbers]); // Current equation state
   const [result, setResult] = useState(null); // Calculation result/message (null initially)
+
 
   const availableOps = ['+', '-', '×', '÷', '(', ')', '^'];
   const operatorValues = {'+': '+', '-': '-', '×': '*', '÷': '/', '(': '(', ')': ')', '^': '**'}; // For calculation
@@ -295,6 +303,38 @@ export default function EquationGame() {
   // Dependencies
   }, [roomId, playerId, isSpectator, spectatingPlayerId]);
 
+  // Timer effect
+  useEffect(() => {
+    if (timeLeft <= 0) {
+      setIsTimeUp(true);
+      return;
+    }
+    const timer = setInterval(() => {
+      setTimeLeft((prev) => prev - 1);
+    }, 1000);
+    return () => clearInterval(timer);
+  }, [timeLeft]);
+
+  // Redirect to post-game analysis when time is up
+  useEffect(() => {
+    if (isTimeUp) {
+      setTimeout(() => {
+        fetch(`/api/games/${playerId}/review`, {
+method: "POST",
+          headers: {
+            "Content-Type": "application/json"
+          },
+body: JSON.stringify({
+username: playerId,
+digits: initialNumbers.map(e => e.value),
+state: stateDiffMakerFromState(initialNumbers.map(e => e.value), states)
+          })
+}).then(() => {
+          router.push(`/review/${roomId}`); // Replace with the actual post-game analysis page route
+        })
+      }, 2000); // Delay for visual effect
+    }
+  }, [isTimeUp, router]);
 
   // --- Game Logic Functions (JavaScript Version) ---
 
@@ -323,6 +363,7 @@ export default function EquationGame() {
     const newId = `op-${Date.now()}-${Math.random().toString(16).slice(2)}`;
     const newItem = { id: newId, value: op, type: 'operator' };
     const newEquation = [...equation, newItem];
+    setState(s=>[...s, newEquation.map(e=>e.value).join("")]);
     setEquation(newEquation);
     emitUpdate('updateEquation', { equation: newEquation });
   };
@@ -376,8 +417,10 @@ export default function EquationGame() {
         return;
     }
     // --- End Validation ---
+    setState(s=>[...s, potentiallyNewEquation.map(e=>e.value).join("")]);
 
     setEquation(potentiallyNewEquation);
+    
     emitUpdate('updateEquation', { equation: potentiallyNewEquation });
   };
 
@@ -456,6 +499,12 @@ export default function EquationGame() {
           ></span>
         </h1>
       </nav>
+
+      {/* Timer Display */}
+      <div className="absolute top-4 right-4 bg-[#1E293B] text-[#8B5CF6] p-4 rounded-xl shadow-lg text-center z-20">
+        <p className="text-lg font-bold">Time Left</p>
+        <p className="text-3xl font-extrabold">{timeLeft}s</p>
+      </div>
 
       {/* Main Game Area */}
       <div className="flex-grow flex flex-col items-center justify-center p-4 relative z-10">
@@ -542,9 +591,9 @@ export default function EquationGame() {
             <motion.button
               className="px-8 py-4 bg-[#8B5CF6] rounded-xl text-lg font-semibold disabled:opacity-50 disabled:cursor-not-allowed"
               onClick={calculateResult}
-              whileHover={isSpectator ? {} : { scale: 1.05, boxShadow: "0 0 15px rgba(138, 91, 246, 0.5)" }}
-              whileTap={isSpectator ? {} : { scale: 0.95 }}
-              disabled={isSpectator}
+              whileHover={isSpectator || isTimeUp ? {} : { scale: 1.05, boxShadow: "0 0 15px rgba(138, 91, 246, 0.5)" }}
+              whileTap={isSpectator || isTimeUp ? {} : { scale: 0.95 }}
+              disabled={isSpectator || isTimeUp}
             >
               Calculate
             </motion.button>
@@ -566,6 +615,13 @@ export default function EquationGame() {
               <p className={`text-xl font-semibold ${result.startsWith('Success') ? 'text-green-400' : result.startsWith('Error') ? 'text-red-400' : ''}`}>
                 {result}
               </p>
+            </div>
+          )}
+
+          {/* Timer End Message */}
+          {isTimeUp && (
+            <div className="text-center p-4 bg-red-600 text-white rounded-xl mt-4">
+              <p className="text-xl font-bold">Time's up! Redirecting to post-game analysis...</p>
             </div>
           )}
         </div>

@@ -3,25 +3,25 @@ import dbConnect from '@/lib/dbConnect';
 import GameState from '@/models/GameState';
 
 export async function GET(request, { params }) {
-  const { gameid } =await params;
-//   const { searchParams } = new URL(request.url);
-//   const username = searchParams.get('username');
+  const { gameid } = params; // Removed unnecessary 'await'
+  const { searchParams } = new URL(request.url);
+  const username = searchParams.get('username');
 
-//   if (!username) {
-//     return NextResponse.json({ 
-//       success: false, 
-//       error: 'Username is required' 
-//     }, { status: 400 });
-//   }
+  if (!username) {
+    return NextResponse.json({ 
+      success: false, 
+      error: 'Username is required' 
+    }, { status: 400 });
+  }
 
   try {
     await dbConnect(); // Ensure database connection
-    const gameState = await GameState.findOne({ 
+    const gameState = await GameState.find({ 
       gameId: gameid,
-    //   username: username 
-    }).sort({ createdAt: -1 }); // Get the most recent state for this user
+      username: username 
+    }).sort({ createdAt: -1 }).limit(1); // Changed 'findOne' to 'find' with sorting and limit
 
-    if (!gameState) {
+    if (!gameState.length) {
       return NextResponse.json({
         success: false,
         error: 'Game state not found'
@@ -30,20 +30,20 @@ export async function GET(request, { params }) {
 
     return NextResponse.json({
       success: true,
-      data: gameState
+      data: gameState[0] // Access the first result
     });
 
   } catch (error) {
     console.error('Error fetching GameState:', error); // Log detailed error
     return NextResponse.json({ 
       success: false, 
-      error: error.message 
+      error: 'An error occurred while fetching the game state.' // Generic error message
     }, { status: 500 });
   }
 }
 
 export async function POST(request, { params }) {
-  const { gameid } = await params;
+  const { gameid } = params; // Removed unnecessary 'await'
   
   try {
     await dbConnect(); // Ensure database connection
@@ -53,6 +53,13 @@ export async function POST(request, { params }) {
       return NextResponse.json({ 
         success: false, 
         error: 'Username is required' 
+      }, { status: 400 });
+    }
+
+    if (!body.digits || !body.state) {
+      return NextResponse.json({
+        success: false,
+        error: 'Digits and state are required'
       }, { status: 400 });
     }
 
@@ -74,7 +81,7 @@ export async function POST(request, { params }) {
     console.error('Error saving GameState:', error); // Log detailed error
     return NextResponse.json({ 
       success: false, 
-      error: error.message 
+      error: 'An error occurred while saving the game state.' // Generic error message
     }, { status: 500 });
   }
 }
