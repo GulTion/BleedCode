@@ -14,7 +14,10 @@ const evaluateExpression = (expression) => {
   console.warn("Using placeholder evaluateExpression. Replace with a safe evaluator.");
   if (!expression) return { value: null, error: null };
   try {
-    const sanitized = expression.replace(/[^-()\d/*+.]/g, '');
+    // Allow whitespace and replace ^ with ** for exponentiation
+    const sanitized = expression
+      .replace(/[^-()\d/*+.^\s]/g, '') // Allow valid characters
+      .replace(/\^/g, '**'); // Replace ^ with ** for JavaScript
     const result = new Function(`return ${sanitized}`)();
     if (typeof result !== 'number' || !isFinite(result)) {
       return { value: null, error: 'Invalid calculation result' };
@@ -110,10 +113,10 @@ const HectoClashStateReplay = ({
             </div>
             <div className="text-center text-sm text-gray-400">
                 Step {currentStateIndex + 1} of {gameStates.length}
-                <div className="flex items-center justify-center gap-1 mt-1">
+                {/* <div className="flex items-center justify-center gap-1 mt-1">
                     <FaRegClock className="w-3 h-3"/>
                     <span>{currentTimestamp}</span>
-                </div>
+                </div> */}
             </div>
         </div>
 
@@ -157,7 +160,7 @@ const HectoClashStateReplay = ({
         {/* Right Side: Optimal Solutions FOR THIS STATE */}
         <div className="p-4 rounded-lg border border-blue-500/50 bg-blue-900/40">
           <h4 className="text-lg font-semibold mb-3 flex items-center text-blue-300">
-            <FaLightbulb className="mr-2 text-yellow-400"/> Possible Solutions
+            <FaLightbulb className="mr-2 text-yellow-400"/> {currentOptimalSolutions.length} Possible Solutions 
           </h4>
           {/* *** MODIFIED: Use currentOptimalSolutions *** */}
           {currentOptimalSolutions && currentOptimalSolutions.length > 0 ? (
@@ -206,53 +209,3 @@ const HectoClashStateReplay = ({
 
 export default HectoClashStateReplay;
 
-// --- EXAMPLE USAGE ---
-/*
-// Note the new structure for gameStates including 'optimalSolutionsForThisState'
-const SampleGameStatesWithPerStateSolutions = [
-  {
-    userAttemptExpression: null,
-    timestamp: Date.now() - 5000,
-    progress: 10,
-    optimalSolutionsForThisState: [ // Solutions available *before* the first real attempt
-        "1+(2+3+4)*(5+6)",
-        "((1+2)*3 + 4)*5 + 6" // 71 - Incorrect, just example
-    ]
-  },
-  {
-    userAttemptExpression: "1+2+3+4+5+6", // Result: 21
-    timestamp: Date.now() - 3500,
-    progress: 40,
-    optimalSolutionsForThisState: [ // Solutions *after* the first attempt was made
-       "1+(2+3+4)*(5+6)",
-       // Maybe a different optimal solution becomes apparent here?
-       "(1+2+3)*4*5+6" // 6 * 4 * 5 + 6 = 126 - Incorrect, just example
-    ]
-  },
-  {
-    userAttemptExpression: "1*2*3*(4+5+6)", // Result: 90
-    timestamp: Date.now() - 2000,
-    progress: 75,
-    optimalSolutionsForThisState: [ // Only one optimal known at this point?
-        "1+(2+3+4)*(5+6)"
-    ]
-   },
-  {
-    userAttemptExpression: "1+(2+3+4)*(5+6)", // Result: 100
-    timestamp: Date.now() - 500,
-    progress: 95, // Progress might not be 100 if time was a factor
-    optimalSolutionsForThisState: [ // User found an optimal one
-        "1+(2+3+4)*(5+6)"
-    ]
-  },
-];
-
-
-<HectoClashStateReplay
-  puzzleDigits="123456"
-  gameStates={SampleGameStatesWithPerStateSolutions}
-  // No top-level optimalSolutions prop needed anymore
-/>
-*/
-
-// --- END OF FILE HectoClashStateReplay.jsx ---
