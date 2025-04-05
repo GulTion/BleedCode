@@ -6,8 +6,8 @@ export const progressGraph=(allSolutions, states)=>{
 let progress = 0.0;
 return states.map(((e,i)=>{
     // console.log(solutionCanExist(allSolutions, e.state).length);
-    
-    if(solutionCanExist(allSolutions, e.state).length>0){
+    let solutions = solutionCanExist(allSolutions, e.state)
+    if(solutions.length>0){
         progress=Math.min(progress+20, 80);
         // progress+=0.2
     }else{
@@ -15,8 +15,6 @@ return states.map(((e,i)=>{
     }
 
     if(i==states.length-1) progress=100;
-    return ({...e, progress})
+    return ({...e, progress,solutions})
 }))
 }
-
-console.log(progressGraph(_121212, _state));
