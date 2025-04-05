@@ -5,8 +5,12 @@ import { TypeAnimation } from 'react-type-animation';
 import { FaRocket, FaTrophy, FaBolt, FaGoogle, FaGithub, FaTimes, FaUserAstronaut } from 'react-icons/fa';
 import { RiSpaceShipFill, RiAliensFill, RiGamepadFill } from 'react-icons/ri';
 import { IoMdPlanet } from 'react-icons/io';
+import { signIn, useSession } from 'next-auth/react';
+import { useRouter } from 'next/navigation';
 
 const LandingPage = () => {
+  const { data: session } = useSession();
+  const router = useRouter();
   const [showLogin, setShowLogin] = useState(false);
   const [loginEmail, setLoginEmail] = useState('');
   const [loginPassword, setLoginPassword] = useState('');
@@ -24,11 +28,35 @@ const LandingPage = () => {
     generateStars();
   }, []);
 
-  const handleLogin = (e) => {
+  useEffect(() => {
+    if (session) {
+      router.push('/home');
+    }
+  }, [session, router]);
+
+  const handleLogin = async (e) => {
     e.preventDefault();
-    // Add login logic here
-    console.log('Login attempted:', { loginEmail, loginPassword });
+    try {
+      const result = await signIn('credentials', {
+        username: loginEmail,
+        password: loginPassword,
+        redirect: false,
+      });
+      
+      if (result.error) {
+        // Handle error
+        console.error(result.error);
+      } else {
+        router.push('/home');
+      }
+    } catch (error) {
+      console.error('Login failed:', error);
+    }
   };
+
+  // For OAuth providers
+  const handleGoogleLogin = () => signIn('google');
+  const handleGithubLogin = () => signIn('github');
 
   return (
     <div className="min-h-screen bg-gray-900 text-white relative overflow-hidden">
@@ -129,12 +157,14 @@ const LandingPage = () => {
                 <motion.button 
                   whileHover={{ scale: 1.1 }}
                   className="p-3 bg-gray-800 hover:bg-gray-700 rounded-full transition-colors"
+                  onClick={handleGoogleLogin}
                 >
                   <FaGoogle className="text-xl" />
                 </motion.button>
                 <motion.button 
                   whileHover={{ scale: 1.1 }}
                   className="p-3 bg-gray-800 hover:bg-gray-700 rounded-full transition-colors"
+                  onClick={handleGithubLogin}
                 >
                   <FaGithub className="text-xl" />
                 </motion.button>
