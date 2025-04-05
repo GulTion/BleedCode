@@ -114,3 +114,44 @@
   0%, 100% { opacity: 0.2; transform: scale(1); }
   50% { opacity: 0.8; transform: scale(1.2); }
 }
+@keyframes meteor-fall {
+  0% {
+    transform: translateY(-100vh) translateX(0) rotate(45deg);
+    opacity: 1;
+  }
+  100% {
+    transform: translateY(100vh) translateX(-100px) rotate(45deg);
+    opacity: 0;
+  }
+}
+
+.meteors-container {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+  z-index: 1;
+  overflow: hidden;
+}
+
+.meteor {
+  position: absolute;
+  width: 2px;
+  height: 60px;
+  background: linear-gradient(to bottom, rgba(255,255,255,0.8), rgba(255,255,255,0));
+  animation: meteor-fall 3s linear forwards;
+  filter: drop-shadow(0 0 10px rgba(255,255,255,0.7));
+  transform-origin: top left;
+}
+.operator-section {
+  width: 300px; /* Fixed width */
+  max-width: 300px; /* Ensures the width does not expand */
+  flex-wrap: wrap; /* Allows wrapping of operators within the fixed width */
+}
+
+.equation-section {
+  width: auto; /* Expands to fill available space */
+  max-width: 100%; /* Ensures it uses the remaining space */
+}

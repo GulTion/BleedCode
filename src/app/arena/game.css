@@ -1,0 +1,155 @@
+@keyframes meteor-fall {
+    0% {
+      transform: translateY(-100vh) rotate(45deg);
+      opacity: 1;
+    }
+    100% {
+      transform: translateY(100vh) rotate(45deg);
+      opacity: 0;
+    }
+  }
+  
+  .meteors-container {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    pointer-events: none;
+    z-index: 1;
+  }
+  
+  .meteor {
+    position: absolute;
+    width: 2px;
+    height: 60px;
+    background: linear-gradient(to bottom, rgba(255,255,255,0.8), rgba(255,255,255,0));
+    animation: meteor-fall 3s linear infinite;
+    filter: drop-shadow(0 0 10px rgba(255,255,255,0.7));
+  }
+  
+  .meteor-digit {
+    background: linear-gradient(145deg, #2a2a2a, #1a1a1a);
+    border: 2px solid #444;
+    box-shadow: 0 0 15px rgba(255,165,0,0.3);
+  }
+  
+  .operator-meteor {
+    background: linear-gradient(145deg, #ff6b00, #ff3c00);
+    border: 2px solid #ff8c00;
+    box-shadow: 0 0 15px rgba(255,107,0,0.3);
+  }
+  
+  .equation-builder {
+    border: 2px solid rgba(255,255,255,0.1);
+    min-height: 100px;
+  }
+  
+  .number-element {
+    background: rgba(255,255,255,0.1);
+    border: 2px solid #4a5568;
+  }
+  
+  .operator-element {
+    background: rgba(255,165,0,0.15);
+    border: 2px solid #ff6b00;
+    color: #ff6b00;
+  }
+  /* game.css */
+@keyframes meteor-fall {
+    0% {
+      transform: translateY(-100vh) translateX(0) rotate(45deg);
+      opacity: 1;
+    }
+    100% {
+      transform: translateY(100vh) translateX(-100px) rotate(45deg);
+      opacity: 0;
+    }
+  }
+  
+  .meteors-container {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    pointer-events: none;
+    z-index: 1;
+    overflow: hidden;
+  }
+  
+  .meteor {
+    position: absolute;
+    width: 2px;
+    height: 60px;
+    background: linear-gradient(to bottom, rgba(255,255,255,0.8), rgba(255,255,255,0));
+    animation: meteor-fall 3s linear infinite;
+    filter: drop-shadow(0 0 10px rgba(255,255,255,0.7));
+    transform-origin: top left;
+  }
+  /* game.css */
+@keyframes meteor-fall {
+    0% {
+      transform: translateY(-100vh) translateX(0) rotate(45deg);
+      opacity: 1;
+    }
+    100% {
+      transform: translateY(100vh) translateX(-100px) rotate(45deg);
+      opacity: 0;
+    }
+  }
+  
+  .meteors-container {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    pointer-events: none;
+    z-index: 1;
+    overflow: hidden;
+  }
+  
+  .meteor {
+    position: absolute;
+    width: 2px;
+    height: 60px;
+    background: linear-gradient(to bottom, rgba(255,255,255,0.8), rgba(255,255,255,0));
+    animation: meteor-fall 3s linear infinite;
+    filter: drop-shadow(0 0 10px rgba(255,255,255,0.7));
+    transform-origin: top left;
+  }
+  
+  /* game.css */
+@keyframes meteor-fall {
+    0% {
+      transform: translateY(-100vh) translateX(0) rotate(45deg);
+      opacity: 1;
+    }
+    100% {
+      transform: translateY(100vh) translateX(-100px) rotate(45deg);
+      opacity: 0;
+    }
+  }
+  
+  .meteors-container {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    pointer-events: none;
+    z-index: 1;
+    overflow: hidden;
+  }
+  
+  .meteor {
+    position: absolute;
+    width: 2px;
+    height: 60px;
+    background: linear-gradient(to bottom, rgba(255,255,255,0.8), rgba(255,255,255,0));
+    animation: meteor-fall 3s linear infinite;
+    filter: drop-shadow(0 0 10px rgba(255,255,255,0.7));
+    transform-origin: top left;
+  }
+  
