@@ -2,8 +2,6 @@
 import mongoose from 'mongoose';
 
 const GameSchema = new mongoose.Schema({
-  // Consider if you need a custom gameid or if MongoDB's default _id is sufficient.
-  // If using a custom one:
   gameid: {
     type: String,
     required: true,
@@ -13,60 +11,57 @@ const GameSchema = new mongoose.Schema({
   username1: {
     type: String,
     required: [true, "Username of player 1 is required."],
-    index: true, // Index if you search games by player often
+    index: true,
   },
   username2: {
     type: String,
     required: [true, "Username of player 2 is required."],
-    index: true, // Index if you search games by player often
+    index: true,
   },
-  user1rating: { // Rating of user 1 *at the time the game was played*
+  user1rating: {
     type: Number,
     required: [true, "Rating of player 1 is required."]
   },
-  user2rating: { // Rating of user 2 *at the time the game was played*
+  user2rating: {
     type: Number,
     required: [true, "Rating of player 2 is required."]
   },
-  winnerusername: { // Can be username1, username2, or potentially null/specific string for a draw
+  winnerusername: {
     type: String,
-    default: null, // Default to null, update when game finishes
+    default: null,
   },
-  seconds: { // Duration of the game in seconds
+  seconds: {
     type: Number,
     required: [true, "Game duration in seconds is required."],
     min: 0,
   },
-  user1states: { // String representation of player 1's game states/moves (e.g., PGN, JSON)
-    type: String,
+  // --- MODIFIED FIELDS ---
+  user1states: { // Array of game states/moves for player 1
+    type: [String], // Changed to Array of Strings
     required: true,
+    default: [],   // Default to empty array
   },
-  user1timestamps: { // Array of timestamps corresponding to player 1's states/moves
-    type: [Date],
+  user1timestamps: { // Array of timestamps corresponding to player 1's states
+    type: [Date],   // Stays as Array of Dates
     required: true,
-    default: [],
+    default: [Date.now()],   // Default to empty array
   },
-  user2states: { // String representation of player 2's game states/moves
-    type: String,
+  user2states: { // Array of game states/moves for player 2
+    type: [String], // Changed to Array of Strings
     required: true,
+    default: [],   // Default to empty array
   },
-  user2timestamps: { // Array of timestamps corresponding to player 2's states/moves
-    type: [Date],
+  user2timestamps: { // Array of timestamps corresponding to player 2's states
+    type: [Date],   // Stays as Array of Dates
     required: true,
-    default: [],
+    default: [Date.now()],   // Default to empty array
   },
+  // --- END MODIFIED FIELDS ---
   createdAt: {
     type: Date,
-    default: Date.now, // Automatically set the creation date
-  },
-  // You might want to add a 'status' field (e.g., 'ongoing', 'completed', 'draw', 'aborted')
-  // status: {
-  //   type: String,
-  //   enum: ['ongoing', 'completed', 'draw', 'aborted'],
-  //   default: 'ongoing',
-  //   required: true,
-  // }
+    default: Date.now,
+  }
 });
 
-// Prevent model overwrite during hot-reloading
+
 export default mongoose.models.Game || mongoose.model('Game', GameSchema);
