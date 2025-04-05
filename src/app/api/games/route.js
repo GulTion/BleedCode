@@ -86,4 +86,49 @@ export async function POST(request) {
   }
 }
 
+
+
 // ... (keep any GET handlers if you have them) ...
+export async function GET(request) {
+  try {
+    // 1. Get username from query parameters
+    // The 'request' object contains URL details
+    const { searchParams } = new URL(request.url);
+    const username = searchParams.get('username'); // Get 'username' query param
+
+    // 2. Validate input: Check if username parameter is provided
+    if (!username) {
+      return NextResponse.json(
+        { success: false, error: 'Missing required query parameter: username' },
+        { status: 400 } // Bad Request
+      );
+    }
+
+    // 3. Connect to DB
+    await dbConnect();
+
+    // 4. Query the database for games involving the user
+    // Find games where the username matches either player1 or player2
+    const games = await Game.find({
+      $or: [                     // Use the $or operator
+        { username1: username }, // Check if user is player 1
+        { username2: username }  // Check if user is player 2
+      ]
+    }).sort({ createdAt: -1 }); // Optional: Sort by newest games first
+
+    // 5. Return the results
+    // It's good practice to indicate if no games were found, even if it's an empty array
+    return NextResponse.json(
+        { success: true, count: games.length, data: games }, // Include count for clarity
+        { status: 200 } // OK
+    );
+
+  } catch (error) {
+    // 6. Handle potential errors
+    console.error("GET /api/games?username=... error:", error);
+    return NextResponse.json(
+        { success: false, error: 'Server Error fetching games for user' },
+        { status: 500 } // Internal Server Error
+    );
+  }
+}
