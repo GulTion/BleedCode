@@ -136,21 +136,21 @@ const LandingPage = () => {
                 transition={{ delay: 0.4 }}
                 className="flex flex-wrap gap-4 justify-center lg:justify-start"
               >
-                <button 
+                {/* <button 
                   onClick={() => setShowLogin(true)}
                   className="px-8 py-3 bg-purple-600 hover:bg-purple-700 rounded-full font-semibold transition-all transform hover:scale-105 flex items-center space-x-2"
                 >
                   <FaUserAstronaut className="text-lg" />
                   <span>Login</span>
-                </button>
-                <button className="px-8 py-3 bg-pink-600 hover:bg-pink-700 rounded-full font-semibold transition-all transform hover:scale-105 flex items-center space-x-2">
+                </button> */}
+                {/* <button className="px-8 py-3 bg-pink-600 hover:bg-pink-700 rounded-full font-semibold transition-all transform hover:scale-105 flex items-center space-x-2">
                   <FaRocket className="text-lg" />
                   <span>Sign Up</span>
                 </button>
                 <button className="px-8 py-3 bg-gray-800 hover:bg-gray-700 rounded-full font-semibold transition-all transform hover:scale-105 flex items-center space-x-2">
                   <RiGamepadFill className="text-lg" />
                   <span>Play as Guest</span>
-                </button>
+                </button> */}
               </motion.div>
 
               <div className="flex items-center space-x-4 justify-center lg:justify-start">
@@ -161,13 +161,13 @@ const LandingPage = () => {
                 >
                   <FaGoogle className="text-xl" />
                 </motion.button>
-                <motion.button 
+                {/* <motion.button 
                   whileHover={{ scale: 1.1 }}
                   className="p-3 bg-gray-800 hover:bg-gray-700 rounded-full transition-colors"
                   onClick={handleGithubLogin}
                 >
                   <FaGithub className="text-xl" />
-                </motion.button>
+                </motion.button> */}
               </div>
             </div>
 

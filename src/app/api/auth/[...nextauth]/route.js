@@ -91,7 +91,7 @@ const authOptions = {
               // password: hashedPassword,
               password: randomPassword, // Store plain random if not hashing SSO passwords
               // Set default values for other required fields if necessary
-              // rating: 1500, // Example
+              // rating: 100, // Example
               // coins: 100, // Example
             });
 
