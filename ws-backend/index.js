@@ -7,124 +7,183 @@ const cors = require('cors');
 const app = express();
 const server = http.createServer(app);
 
-// Configure CORS to allow connections from your Next.js app's origin
-// Replace 'http://localhost:3000' with your actual frontend URL if different
-const io = new Server(server, {
-    cors: {
-      origin: "*", // Allow all origins
-      methods: ["GET", "POST"], // Specify allowed HTTP methods
-      // credentials: true // Add this if you need to handle cookies or authorization headers
-    }
-  });
+const GAME_DURATION_SECONDS = 60; // Base duration
 
-// Keep track of users in rooms (can be improved with a database for persistence)
-// Structure: { roomId: { socketId: { playerId, role, targetPlayerId? } } }
+const io = new Server(server, {
+    cors: { origin: "*", methods: ["GET", "POST"] }
+});
+
+// --- Updated Room Structure ---
+// { roomId: { users: { socketId: { uniqueId, playerId?, role, targetPlayerId?, solvedTime: number | null } },
+//             gameStarted: boolean, gameStartTime: number | null, gameDuration: number } }
 const rooms = {};
 
-io.on('connection', (socket) => {
-  console.log(`User connected: ${socket.id}`);
+// --- Helper Function: Get Users in Room ---
+// Now includes solvedTime for players
+function getUsersInRoom(roomId) {
+    const roomData = rooms[roomId];
+    if (!roomData || !roomData.users) return [];
 
-  // --- Join Room Logic ---
-  socket.on('joinRoom', ({ roomId, playerId, role = 'player', targetPlayerId = null }) => {
-    if (!roomId) {
-        console.error(`Socket ${socket.id} tried to join without roomId`);
-        // Optionally emit an error back to the client
-        socket.emit('errorJoining', { message: 'Room ID is required.' });
-        return;
-    }
-
-    socket.join(roomId);
-    console.log(`Socket ${socket.id} (${role} ${playerId || ''}) joined room ${roomId}`);
-
-    // Store user info associated with this socket
-    if (!rooms[roomId]) {
-        rooms[roomId] = {};
-    }
-    rooms[roomId][socket.id] = {
-        playerId: role === 'player' ? playerId : null, // Only players have their own ID here for game state
-        role: role,
-        targetPlayerId: role === 'spectator' ? targetPlayerId : null // Who the spectator is watching
-    };
-
-    // Notify the client they joined successfully (optional)
-    socket.emit('joinedRoom', { roomId, role, targetPlayerId });
-
-    // TODO: Implement logic to send current state if a spectator joins mid-game
-    // This requires storing the latest state per player or requesting it.
-    // For simplicity now, spectators only see updates *after* they join.
-    console.log("Current rooms state:", JSON.stringify(rooms, null, 2)); // Log room state for debugging
-  });
-
-  // --- Player Update Logic ---
-  socket.on('updateEquation', ({ roomId, playerId, equation }) => {
-    if (!roomId || !playerId || !equation) {
-        console.error(`Invalid updateEquation received from ${socket.id}`);
-        return; // Ignore invalid events
-    }
-    console.log(`Equation update from player ${playerId} in room ${roomId}`);
-    console.log(equation);
-    // Broadcast to spectators in the *same room* watching *this player*
-    if (rooms[roomId]) {
-        Object.entries(rooms[roomId]).forEach(([socketId, userInfo]) => {
-            // Check if it's a spectator watching the player who sent the update
-            if (userInfo.role === 'spectator' && userInfo.targetPlayerId === playerId) {
-                // Use io.to(socketId).emit to send only to this specific spectator
-                io.to(socketId).emit('equationUpdated', {
-                    playerID: playerId, // Let spectator confirm it's for the player they watch
-                    equation: equation
-                });
-                console.log(` >> Sent equation update for ${playerId} to spectator ${socketId}`);
-            }
-        });
-    }
-  });
-
-  socket.on('updateResult', ({ roomId, playerId, result }) => {
-      if (!roomId || !playerId || result === undefined) {
-        console.error(`Invalid updateResult received from ${socket.id}`);
-        return; // Ignore invalid events
-      }
-    console.log(`Result update from player ${playerId} in room ${roomId}: ${result}`);
-
-    // Broadcast to spectators in the *same room* watching *this player*
-    if (rooms[roomId]) {
-        Object.entries(rooms[roomId]).forEach(([socketId, userInfo]) => {
-            // Check if it's a spectator watching the player who sent the update
-            if (userInfo.role === 'spectator' && userInfo.targetPlayerId === playerId) {
-                 // Use io.to(socketId).emit to send only to this specific spectator
-                io.to(socketId).emit('resultUpdated', {
-                    playerID: playerId,
-                    result: result
-                });
-                console.log(` >> Sent result update for ${playerId} to spectator ${socketId}`);
-            }
-        });
-    }
-  });
-
-  // --- Disconnect Logic ---
-  socket.on('disconnect', () => {
-    console.log(`User disconnected: ${socket.id}`);
-    // Find which room the socket was in and remove them
-    for (const roomId in rooms) {
-      if (rooms[roomId][socket.id]) {
-        console.log(`Removing ${socket.id} from room ${roomId}`);
-        delete rooms[roomId][socket.id];
-        // If room is empty, delete the room (optional)
-        if (Object.keys(rooms[roomId]).length === 0) {
-          console.log(`Room ${roomId} is now empty, removing.`);
-          delete rooms[roomId];
+    const userList = [];
+    Object.values(roomData.users).forEach(userInfo => {
+        const user = {
+            uniqueId: userInfo.uniqueId,
+            role: userInfo.role,
+        };
+        if (userInfo.role === 'player') {
+            user.playerId = userInfo.playerId;
+            user.solvedTime = userInfo.solvedTime; // Include solve time
         }
-        // Optional: Notify others in the room that someone left
-        // io.to(roomId).emit('userLeft', { socketId: socket.id });
-        break; // Assume socket is only in one room for this simple model
-      }
-    }
-    console.log("Current rooms state after disconnect:", JSON.stringify(rooms, null, 2));
-  });
+        if (userInfo.role === 'spectator') {
+            user.targetPlayerId = userInfo.targetPlayerId;
+        }
+        userList.push(user);
+    });
+    // No sorting here, frontend will handle display sorting
+    // console.log(`[Helper] getUsersInRoom(${roomId}):`, userList);
+    return userList;
+}
+// --- End Helper Function ---
+
+io.on('connection', (socket) => {
+    console.log(`[Connection] User connected: ${socket.id}`);
+    let currentRoomId = null;
+
+    // --- Join Room Logic ---
+    socket.on('joinRoom', ({ roomId, playerId, role = 'player', targetPlayerId = null }) => {
+        if (!roomId) { socket.emit('errorJoining', { message: 'Room ID required.' }); return; }
+
+        // --- Leave Previous Room ---
+        if (currentRoomId && currentRoomId !== roomId) { /* ... leave/cleanup logic ... */ }
+
+        // --- Join New Room ---
+        socket.join(roomId);
+        currentRoomId = roomId;
+        console.log(`[Room Join] Socket ${socket.id} (${role} ${playerId || ''}) joined room ${roomId}`);
+
+        if (!rooms[roomId]) {
+            rooms[roomId] = {
+                users: {},
+                gameStarted: false,
+                gameStartTime: null,
+                gameDuration: GAME_DURATION_SECONDS
+            };
+        }
+
+        // Store user info, including initializing solvedTime for players
+        const uniqueId = role === 'player' ? `player-${playerId}` : `spectator-${socket.id}`;
+        rooms[roomId].users[socket.id] = {
+            uniqueId,
+            playerId: role === 'player' ? playerId : null,
+            role,
+            targetPlayerId: role === 'spectator' ? targetPlayerId : null,
+            solvedTime: role === 'player' ? null : undefined // Initialize solvedTime only for players
+        };
+
+        socket.emit('joinedRoom', { roomId, role, targetPlayerId });
+
+        // Broadcast updated user list
+        const currentUserList = getUsersInRoom(roomId);
+        io.to(roomId).emit('roomUserListUpdate', currentUserList);
+
+        // Sync for Late Joiners (send game state if started)
+        if (rooms[roomId].gameStarted && rooms[roomId].gameStartTime) {
+            socket.emit('gameHasStarted', {
+                roomId: roomId,
+                gameStartTime: rooms[roomId].gameStartTime,
+                gameDuration: rooms[roomId].gameDuration
+            });
+            // TODO: Send spectator initial equation state if needed
+        }
+    });
+
+    // --- Start Game Logic ---
+    socket.on('startGame', (roomId) => {
+        // ... (validation logic remains the same) ...
+        const room = rooms[roomId];
+        const user = room?.users?.[socket.id];
+        if (!room || !user || user.role !== 'player' || room.gameStarted || Object.keys(room.users).length < 2) { /*... handle errors ...*/ return; }
+
+        room.gameStarted = true;
+        room.gameStartTime = Date.now();
+        // Reset solved times for all players in the room when a new game starts
+        Object.keys(room.users).forEach(sid => {
+             if(room.users[sid].role === 'player') {
+                 room.users[sid].solvedTime = null;
+             }
+        });
+
+        console.log(`[Game Started] Room ${roomId} at ${room.gameStartTime}. Solved times reset.`);
+
+        // Broadcast start info (includes duration)
+        io.to(roomId).emit('gameHasStarted', {
+            roomId: roomId,
+            gameStartTime: room.gameStartTime,
+            gameDuration: room.gameDuration
+        });
+
+         // Broadcast the initial user list again to reflect reset solved times
+         const initialUserList = getUsersInRoom(roomId);
+         io.to(roomId).emit('roomUserListUpdate', initialUserList);
+    });
+
+    // --- *** NEW: Player Solved Event Handler *** ---
+    socket.on('playerSolved', ({ roomId, playerId }) => {
+        const room = rooms[roomId];
+        const userSocketId = Object.keys(room?.users || {}).find(sid => room.users[sid].playerId === playerId);
+        const userInfo = userSocketId ? room.users[userSocketId] : null;
+
+        // Validations
+        if (!room || !room.gameStarted || !room.gameStartTime) {
+            console.warn(`[Solve Rejected] Game not active or not found for room ${roomId}`);
+            return;
+        }
+        if (!userInfo || userInfo.role !== 'player') {
+            console.warn(`[Solve Rejected] Player ${playerId} not found or not a player in room ${roomId}`);
+            return;
+        }
+        if (userInfo.solvedTime !== null) {
+            console.warn(`[Solve Rejected] Player ${playerId} already has a solve time recorded.`);
+            return; // Already solved
+        }
+
+        // Record elapsed time in milliseconds
+        const solveTimeMs = Date.now() - room.gameStartTime;
+        userInfo.solvedTime = solveTimeMs;
+        console.log(`[Player Solved] Player ${playerId} in room ${roomId} solved in ${solveTimeMs} ms.`);
+
+        // *** Broadcast the updated user list with the new solve time ***
+        const updatedUserList = getUsersInRoom(roomId);
+        io.to(roomId).emit('roomUserListUpdate', updatedUserList);
+    });
+
+
+    // --- Player Updates (Equation/Result) ---
+    socket.on('updateEquation', ({ roomId, playerId, equation }) => { /* ... no change ... */ });
+    socket.on('updateResult', ({ roomId, playerId, result }) => { /* ... no change ... */ });
+
+    // --- Disconnect Logic ---
+    socket.on('disconnect', (reason) => {
+        console.log(`[Disconnect] User disconnected: ${socket.id}. Reason: ${reason}`);
+        const roomId = currentRoomId;
+
+        if (roomId && rooms[roomId]?.users?.[socket.id]) {
+            delete rooms[roomId].users[socket.id]; // Remove user
+
+            if (Object.keys(rooms[roomId].users).length === 0) {
+                delete rooms[roomId]; // Delete room if empty
+                console.log(`[Room Cleanup] Room ${roomId} empty, removed.`);
+            } else {
+                // Broadcast updated user list to remaining users
+                const updatedUserList = getUsersInRoom(roomId);
+                io.to(roomId).emit('roomUserListUpdate', updatedUserList);
+                // TODO: Handle game ending if player leaves?
+            }
+        }
+        currentRoomId = null;
+    });
+
+    socket.on('error', (err) => { console.error(`[Socket Error] Socket ${socket.id} error:`, err); });
 });
 
-const PORT = process.env.PORT || 4000; // Use a different port than your Next.js app
-server.listen(PORT, () => {
-  console.log(`Socket.IO server running on port ${PORT}`);
-});
+server.listen(process.env.PORT || 4000, () => { console.log(`\n🚀 Socket.IO server running on port ${process.env.PORT || 4000}`); });

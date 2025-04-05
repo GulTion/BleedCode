@@ -1,631 +1,578 @@
-// EquationGame.js - Complete JAVASCRIPT Code with D&D and Socket Integration
+// EquationGame.js - Complete Code with Final Leaderboard in Overlay
 
-"use client"; // Still needed for Next.js App Router components using hooks
+"use client";
 
-import { useState, useEffect, useRef } from 'react';
-import "./battle.css"; // Make sure this CSS file exists and is correctly styled
-import { motion } from 'framer-motion';
+import { useState, useEffect, useRef, useMemo } from 'react';
+import "./battle.css"; // Base layout and meteors
+import "./gameStyle.css"; // Game-specific elements, user panel, timer styling
+import { motion, AnimatePresence } from 'framer-motion';
 import {
-    DndContext,
-    closestCenter,
-    PointerSensor,
-    useSensor,
-    useSensors
-    // DragEndEvent type removed for JS
+    DndContext, closestCenter, PointerSensor, useSensor, useSensors
 } from '@dnd-kit/core';
 import {
-    SortableContext,
-    useSortable,
-    horizontalListSortingStrategy,
-    arrayMove
+    SortableContext, useSortable, horizontalListSortingStrategy, arrayMove
 } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 import { useSearchParams } from 'next/navigation';
-import io from 'socket.io-client'; // Base import for socket.io client
-import { useRouter } from 'next/navigation'; // Import for navigation
-import { stateDiffMakerFromState } from '../utils/stateDiff';
-// Socket type import removed for JS
+import io from 'socket.io-client';
+import { useRouter } from 'next/navigation';
+import { stateDiffMakerFromState } from '../utils/stateDiff'; // Ensure this utility exists and is correct
 
 // --- Constants ---
-const SOCKET_SERVER_URL = "http://192.168.17.26:4000"; // Matches your server setup
+const SOCKET_SERVER_URL = "http://localhost:4000"; // Your backend server URL
+const DEFAULT_GAME_DURATION = 60;
 
 // --- Components ---
 
-// Meteors Component (Keep as provided before)
+// Meteors Component
 function Meteors() {
     const meteors = new Array(20).fill(true);
     return (
-      <>
-        {meteors.map((el, idx) => (
-          <span
-            key={idx}
-            className="meteor" // Ensure CSS for .meteor exists
-            style={{
-              left: `${Math.floor(Math.random() * 100)}vw`,
-              top: `${Math.floor(Math.random() * 100)}vh`,
-              animationDelay: `${Math.random() * 5}s`,
-              animationDuration: `${Math.random() * 5 + 5}s`,
-            }}
-          />
-        ))}
-      </>
+        <>
+            {meteors.map((el, idx) => (
+                <span
+                    key={idx}
+                    className="meteor"
+                    style={{
+                        left: `${Math.floor(Math.random() * 100)}vw`,
+                        top: `${Math.floor(Math.random() * 100)}vh`,
+                        animationDelay: `${Math.random() * 5}s`,
+                        animationDuration: `${Math.random() * 5 + 5}s`,
+                    }}
+                />
+            ))}
+        </>
     );
 }
 
-// SortableItem Component (Corrected JS version)
-function SortableItem({id, value, isOperator, onRemove, isFixed, isSpectator}) {
-  const isDisabled = isFixed || isSpectator; // Numbers and spectators cannot drag/sort
+// SortableItem Component
+function SortableItem({ id, value, isOperator, onRemove, isFixed, isSpectator, isTimeUp }) {
+    const isDisabled = isFixed || isSpectator || isTimeUp;
+    const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id, disabled: isDisabled });
+    const style = { transform: CSS.Transform.toString(transform), transition, opacity: isDragging ? 0.5 : 1, touchAction: 'none' };
+    const baseCursorStyle = isDisabled ? 'cursor-default' : (isOperator ? 'cursor-grab' : 'cursor-default');
 
-  const {
-    attributes,
-    listeners,
-    setNodeRef,
-    transform,
-    transition,
-    isDragging
-  } = useSortable({
-    id,
-    disabled: isDisabled // Correctly pass disabled state to the hook
-  });
-
-  const style = {
-    transform: CSS.Transform.toString(transform),
-    transition,
-    opacity: isDragging ? 0.5 : 1,
-  };
-
-  const baseCursorStyle = isDisabled ? 'cursor-default' : 'cursor-grab';
-
-  return (
-    <motion.div
-      ref={setNodeRef}
-      style={style}
-      {...attributes} // Required for dnd-kit
-      {...listeners} // Required for dnd-kit (hook handles disabling)
-      className={`relative ${isOperator ? 'bg-[#8B5CF6]' : 'bg-[#2D3748]'} p-4 rounded-xl text-xl font-bold ${baseCursorStyle} ${isDragging ? 'z-50 shadow-lg' : ''}`}
-    >
-      {value}
-      {/* Remove button only shown to non-spectator players for operators */}
-      {isOperator && !isSpectator && (
-        <button
-          className="absolute -top-2 -right-2 bg-red-500 rounded-full w-6 h-6 flex items-center justify-center text-xs z-10 hover:bg-red-700"
-          onClick={(e) => {
-            e.stopPropagation(); // Prevent drag from starting on button click
-            onRemove(id);
-          }}
-          aria-label={`Remove operator ${value}`}
-        >
-          ×
-        </button>
-      )}
-    </motion.div>
-  );
+    return (
+        <motion.div ref={setNodeRef} style={style} {...attributes} {...listeners}
+            className={`sortable-item ${isOperator ? 'operator' : 'number'} ${isDisabled ? 'disabled' : ''} ${isDragging ? 'dragging' : ''}`}>
+            {value}
+            {isOperator && !isSpectator && !isTimeUp && (
+                <button className="remove-button"
+                    onClick={(e) => { e.stopPropagation(); onRemove(id); }} aria-label={`Remove operator ${value}`}>
+                    ×
+                </button>
+            )}
+        </motion.div>
+    );
 }
 
-// Helper function (Keep as is)
-function arraysEqual(a, b) {
-    if (a === b) return true;
-    if (a == null || b == null) return false;
-    if (a.length !== b.length) return false;
-    for (let i = 0; i < a.length; ++i) {
-      if (a[i] !== b[i]) return false;
-    }
-    return true;
+// Helper function
+function arraysEqual(a, b) { // Basic check for ID arrays
+    if (a === b) return true; if (a == null || b == null) return false; if (a.length !== b.length) return false;
+    for (let i = 0; i < a.length; ++i) { if (a[i] !== b[i]) return false; } return true;
 }
 
-
-// --- Main Game Component (JavaScript Version) ---
+// --- Main Game Component ---
 export default function EquationGame() {
-  const [states, setState] = useState([]);
-  const router = useRouter(); // Router instance for navigation
-  const searchParams = useSearchParams();
-  // --- Socket.IO Ref ---
-  const socketRef = useRef(null); // Holds the socket connection (no type hint)
+    const [states, setState] = useState([]);
+    const router = useRouter();
+    const searchParams = useSearchParams();
+    const socketRef = useRef(null);
+    const timerIntervalRef = useRef(null);
 
-  // --- State ---
-  const [roomId, setRoomId] = useState('');
-  const [playerId, setPlayerId] = useState(''); // This client's player ID (if playing)
-  const [spectatingPlayerId, setSpectatingPlayerId] = useState(null); // ID of player being watched (null initially)
-  const [isSpectator, setIsSpectator] = useState(false); // Is this client a spectator?
-  const [isConnected, setIsConnected] = useState(false); // Socket connection status
+    // --- State ---
+    const [roomId, setRoomId] = useState('');
+    const [playerId, setPlayerId] = useState('');
+    const [spectatingPlayerId, setSpectatingPlayerId] = useState(null);
+    const [isSpectator, setIsSpectator] = useState(false);
+    const [isConnected, setIsConnected] = useState(false);
+    const [equation, setEquation] = useState([]);
+    const [result, setResult] = useState(null);
+    const [roomUsers, setRoomUsers] = useState([]); // Raw user list from server
+    const [gameHasStarted, setGameHasStarted] = useState(false);
+    const [isTimeUp, setIsTimeUp] = useState(false);
+    const [gameStartError, setGameStartError] = useState(null);
+    const [serverStartTime, setServerStartTime] = useState(null);
+    const [gameDuration, setGameDuration] = useState(DEFAULT_GAME_DURATION);
+    const [timeLeft, setTimeLeft] = useState(DEFAULT_GAME_DURATION);
+    const [isNavigating, setIsNavigating] = useState(false); // Prevent double navigation clicks
 
-  const [timeLeft, setTimeLeft] = useState(15); // Timer state
-  const [isTimeUp, setIsTimeUp] = useState(false); // Timer end state
+    // --- Refs ---
+    const initialNumbers = useRef([
+        {id: 'num-1', value: '1', type: 'number'}, {id: 'num-2', value: '2', type: 'number'},
+        {id: 'num-3', value: '3', type: 'number'}, {id: 'num-4', value: '4', type: 'number'},
+        {id: 'num-5', value: '5', type: 'number'}, {id: 'num-6', value: '6', type: 'number'},
+    ]).current;
 
-  // Initial numbers setup (using useRef as it's static based on component load)
-  const initialNumbers = useRef([
-    {id: 'num-1', value: '1', type: 'number'},
-    {id: 'num-2', value: '2', type: 'number'},
-    {id: 'num-3', value: '3', type: 'number'},
-    {id: 'num-4', value: '4', type: 'number'},
-    {id: 'num-5', value: '5', type: 'number'},
-    {id: 'num-6', value: '6', type: 'number'},
-  ]).current;
+    const availableOps = ['+', '-', '×', '÷', '(', ')', '^'];
+    const operatorValues = {'+': '+', '-': '-', '×': '*', '÷': '/', '(': '(', ')': ')', '^': '**'};
 
-  const [equation, setEquation] = useState([...initialNumbers]); // Current equation state
-  const [result, setResult] = useState(null); // Calculation result/message (null initially)
+    const sensors = useSensors( useSensor(PointerSensor, { activationConstraint: { distance: 10 } }) );
 
+    // --- Effects ---
 
-  const availableOps = ['+', '-', '×', '÷', '(', ')', '^'];
-  const operatorValues = {'+': '+', '-': '-', '×': '*', '÷': '/', '(': '(', ')': ')', '^': '**'}; // For calculation
+    // Effect 1: Parse URL Params & Initial Setup
+    useEffect(() => {
+        const rId = searchParams.get('roomID');
+        const pId = searchParams.get('playerID');
+        const spectateId = searchParams.get('spectate');
+        if (!rId) { console.error("Missing roomID"); return; }
+        setRoomId(rId);
 
-  // Setup for dnd-kit sensors
-  const sensors = useSensors(
-    useSensor(PointerSensor, {
-      activationConstraint: { distance: 8 }, // Prevent accidental drags
-    })
-  );
+        // Reset state fully on param change
+        setIsSpectator(false); setPlayerId(''); setSpectatingPlayerId(null);
+        setEquation([]); setResult(null); setRoomUsers([]);
+        setGameHasStarted(false); setIsTimeUp(false); setTimeLeft(DEFAULT_GAME_DURATION);
+        setGameStartError(null); setState([]);
+        setServerStartTime(null); setGameDuration(DEFAULT_GAME_DURATION);
+        setIsNavigating(false); // Reset navigation lock
 
-  // --- Effects ---
+        if (spectateId) {
+            setIsSpectator(true); setSpectatingPlayerId(spectateId);
+        } else if (pId) {
+            setIsSpectator(false); setPlayerId(pId);
+        } else { console.error("Missing playerID or spectate parameter"); }
 
-  // Effect 1: Parse URL Parameters
-  useEffect(() => {
-    const rId = searchParams.get('roomID');
-    const pId = searchParams.get('playerID');
-    const spectateId = searchParams.get('spectate');
+        if (timerIntervalRef.current) { clearInterval(timerIntervalRef.current); timerIntervalRef.current = null; }
 
-    console.log("URL Params:", { rId, pId, spectateId });
+    }, [searchParams]);
 
-    if (!rId) {
-        console.error("Missing roomID parameter in URL");
-        return;
-    }
-    setRoomId(rId);
+    // Effect 2: Socket.IO Connection & Event Handling
+    useEffect(() => {
+        if (!roomId || (!isSpectator && !playerId) || (isSpectator && !spectatingPlayerId)) return;
 
-    if (spectateId) {
-      // Spectator Mode
-      setIsSpectator(true);
-      setSpectatingPlayerId(spectateId);
-      setPlayerId('');
-      console.log(`Setting up as spectator for player ${spectateId} in room ${rId}`);
-      setEquation([...initialNumbers]);
-      setResult(null);
-    } else if (pId) {
-      // Player Mode
-      setIsSpectator(false);
-      setPlayerId(pId);
-      setSpectatingPlayerId(null);
-      console.log(`Setting up as player ${pId} in room ${rId}`);
-      setEquation([...initialNumbers]);
-      setResult(null);
-    } else {
-      console.error("Missing playerID or spectate parameter in URL");
-    }
-  }, [searchParams, initialNumbers]); // Rerun if URL params change
+        if (socketRef.current) { socketRef.current.disconnect(); }
 
-
-  // --- Socket.IO Effect (JavaScript Version) ---
-  useEffect(() => {
-    // Guard: Only connect if we have the necessary IDs
-    if (!roomId || (!isSpectator && !playerId) || (isSpectator && !spectatingPlayerId)) {
-      console.log("Socket: Waiting for room/player/spectator identification...");
-      return () => {
-         if (socketRef.current) {
-            console.log("Socket: Disconnecting in cleanup (pre-connection phase)...");
-            socketRef.current.disconnect();
-            socketRef.current = null;
-            setIsConnected(false);
-         }
-      };
-    }
-
-    console.log(`Socket: Attempting connection. Role: ${isSpectator ? 'Spectator' : 'Player'}, PlayerID: ${playerId}, Spectating: ${spectatingPlayerId}`);
-
-    if (socketRef.current?.connected) {
-        console.log("Socket: Already connected.");
-        return;
-    }
-     if (socketRef.current) {
-         console.log("Socket: Disconnecting existing socket before creating new one...");
-         socketRef.current.disconnect();
-     }
-
-    // *** Establish Connection ***
-    socketRef.current = io(SOCKET_SERVER_URL, {
-      reconnectionAttempts: 5,
-      reconnectionDelay: 3000,
-    });
-    const socket = socketRef.current;
-
-    // --- Socket Event Handlers ---
-    socket.on('connect', () => {
-      console.log('Socket: Connected!', socket.id);
-      setIsConnected(true);
-
-      // *** Join Room ***
-      const joinPayload = {
-        roomId: roomId,
-        role: isSpectator ? 'spectator' : 'player',
-        playerId: !isSpectator ? playerId : null,
-        targetPlayerId: isSpectator ? spectatingPlayerId : null
-      };
-      console.log("Socket: Emitting joinRoom:", joinPayload);
-      socket.emit('joinRoom', joinPayload);
-    });
-
-    socket.on('disconnect', (reason) => {
-      console.log('Socket: Disconnected:', reason);
-      setIsConnected(false);
-    });
-
-    socket.on('connect_error', (error) => {
-      console.error('Socket: Connection Error:', error);
-      setIsConnected(false);
-    });
-
-    socket.on('errorJoining', (data) => {
-        console.error('Socket: Error joining room:', data.message);
-     });
-
-     // --- Listener for Spectators: Equation Updates ---
-    socket.on('equationUpdated', (data) => {
-      if (isSpectator && data.playerID === spectatingPlayerId) {
-        console.log(`Socket: Received equation update for player ${data.playerID}:`, data.equation);
-        if (Array.isArray(data.equation)) {
-            setEquation(data.equation);
-        } else {
-            console.error("Socket: Received invalid equation data format:", data.equation);
+        // Ensure protocol is included for socket connection
+        let serverUrl = SOCKET_SERVER_URL;
+        if (!serverUrl.startsWith('http://') && !serverUrl.startsWith('https://')) {
+             serverUrl = 'http://' + serverUrl; // Default to http if none provided
         }
-      }
-    });
 
-    // --- Listener for Spectators: Result Updates ---
-    socket.on('resultUpdated', (data) => {
-       if (isSpectator && data.playerID === spectatingPlayerId) {
-         console.log(`Socket: Received result update for player ${data.playerID}:`, data.result);
-         setResult(data.result);
-       }
-    });
+        socketRef.current = io(serverUrl, { reconnectionAttempts: 3 });
+        const socket = socketRef.current;
 
-    // Optional: Listen for 'joinedRoom' confirmation
-    socket.on('joinedRoom', (data) => {
-        console.log("Socket: Successfully joined room", data);
-    });
+        socket.on('connect', () => {
+            setIsConnected(true);
+            console.log('Socket: Connected!', socket.id);
+            const joinPayload = { roomId, role: isSpectator ? 'spectator' : 'player', playerId: !isSpectator ? playerId : null, targetPlayerId: isSpectator ? spectatingPlayerId : null };
+            socket.emit('joinRoom', joinPayload);
+        });
+        socket.on('disconnect', (reason) => {
+             setIsConnected(false); setRoomUsers([]); setGameHasStarted(false);
+             setServerStartTime(null); setTimeLeft(DEFAULT_GAME_DURATION); setIsTimeUp(false);
+             if (timerIntervalRef.current) { clearInterval(timerIntervalRef.current); timerIntervalRef.current = null; }
+             console.log('Socket: Disconnected:', reason);
+        });
+        socket.on('connect_error', (error) => { setIsConnected(false); console.error('Socket: Connection Error:', error); }); // Log the actual error
+        socket.on('errorJoining', (data) => { console.error('Socket: Error joining room:', data.message); });
+        socket.on('joinedRoom', (data) => { console.log("Socket: Successfully joined room", data); });
+        socket.on('gameStartError', ({ message }) => { setGameStartError(message); setTimeout(() => setGameStartError(null), 5000); });
 
-    // --- Cleanup Function ---
-    return () => {
-      if (socketRef.current) {
-        console.log("Socket: Disconnecting socket in cleanup for:", { roomId, playerId, isSpectator, spectatingPlayerId });
-        // Remove specific listeners
-        socketRef.current.off('connect');
-        socketRef.current.off('disconnect');
-        socketRef.current.off('connect_error');
-        socketRef.current.off('errorJoining');
-        socketRef.current.off('equationUpdated');
-        socketRef.current.off('resultUpdated');
-        socketRef.current.off('joinedRoom');
-        // Disconnect
-        socketRef.current.disconnect();
-        socketRef.current = null;
-        setIsConnected(false);
-      }
-    };
-  // Dependencies
-  }, [roomId, playerId, isSpectator, spectatingPlayerId]);
+        // *** Updated Listeners ***
+        socket.on('roomUserListUpdate', (users) => {
+            console.log('Socket: Received updated user list:', users);
+            setRoomUsers(Array.isArray(users) ? users : []);
+        });
+        socket.on('gameHasStarted', ({ roomId: startedRoomId, gameStartTime, gameDuration: durationFromServer }) => {
+            if (startedRoomId === roomId) {
+                console.log(`Socket: Game started info received for room ${roomId}`);
+                setGameHasStarted(true);
+                setServerStartTime(gameStartTime);
+                const duration = durationFromServer || DEFAULT_GAME_DURATION;
+                setGameDuration(duration);
+                setTimeLeft(duration);
+                setIsTimeUp(false); // Ensure time up is reset
+                setGameStartError(null);
+                setResult(null); // Clear previous result
 
-  // Timer effect
-  useEffect(() => {
-    if (timeLeft <= 0) {
-      setIsTimeUp(true);
-      return;
-    }
-    const timer = setInterval(() => {
-      setTimeLeft((prev) => prev - 1);
-    }, 1000);
-    return () => clearInterval(timer);
-  }, [timeLeft]);
+                if (!isSpectator) {
+                    setEquation([...initialNumbers]);
+                    setState([initialNumbers.map(e => e.value).join("")]);
+                } else { setEquation([]); }
 
-  // Redirect to post-game analysis when time is up
-  useEffect(() => {
-    if (isTimeUp) {
-      setTimeout(() => {
-        fetch(`/api/games/${playerId}/review`, {
-method: "POST",
-          headers: {
-            "Content-Type": "application/json"
-          },
-body: JSON.stringify({
-username: playerId,
-digits: initialNumbers.map(e => e.value),
-state: stateDiffMakerFromState(initialNumbers.map(e => e.value), states)
-          })
-}).then(() => {
-          router.push(`/review/${roomId}`); // Replace with the actual post-game analysis page route
-        })
-      }, 2000); // Delay for visual effect
-    }
-  }, [isTimeUp, router]);
+                if (timerIntervalRef.current) { clearInterval(timerIntervalRef.current); timerIntervalRef.current = null; }
+            }
+        });
+        socket.on('equationUpdated', (data) => {
+             if (isSpectator && data.playerID === spectatingPlayerId && gameHasStarted) {
+                 if (Array.isArray(data.equation)) { setEquation(data.equation); }
+             }
+         });
+         socket.on('resultUpdated', (data) => {
+             if (isSpectator && data.playerID === spectatingPlayerId && gameHasStarted) {
+                 setResult(data.result);
+             }
+         });
 
-  // --- Game Logic Functions (JavaScript Version) ---
+        return () => {
+            if (socketRef.current) {
+                socketRef.current.disconnect();
+                socketRef.current = null;
+            }
+            if (timerIntervalRef.current) { clearInterval(timerIntervalRef.current); timerIntervalRef.current = null; }
+        };
+    }, [roomId, playerId, isSpectator, spectatingPlayerId, initialNumbers]); // Rerun if IDs change
 
-  // *** Helper to Emit Updates (for Players only) ***
-  const emitUpdate = (type, payload) => {
-      if (socketRef.current?.connected && !isSpectator && roomId && playerId) {
-          console.log(`Socket: Emitting ${type} for player ${playerId} in room ${roomId}:`, payload);
-          socketRef.current.emit(type, {
-              roomId,
-              playerId,
-              ...payload
-          });
-      } else if (!isSpectator) {
-          console.warn(`Socket: Cannot emit update (${type}). Conditions not met:`, {
-              connected: socketRef.current?.connected,
-              isSpectator,
-              roomId,
-              playerId
-          });
-      }
-  }
+    // Effect 3: Synced Timer Logic
+    useEffect(() => {
+        if (timerIntervalRef.current) { clearInterval(timerIntervalRef.current); timerIntervalRef.current = null; }
 
-  // Add operator
-  const addOperator = (op) => {
-    if (isSpectator) return;
-    const newId = `op-${Date.now()}-${Math.random().toString(16).slice(2)}`;
-    const newItem = { id: newId, value: op, type: 'operator' };
-    const newEquation = [...equation, newItem];
-    setState(s=>[...s, newEquation.map(e=>e.value).join("")]);
-    setEquation(newEquation);
-    emitUpdate('updateEquation', { equation: newEquation });
-  };
+        if (gameHasStarted && serverStartTime && !isTimeUp) {
+            timerIntervalRef.current = setInterval(() => {
+                const now = Date.now();
+                const elapsedTimeMs = now - serverStartTime;
+                const durationMs = gameDuration * 1000;
+                const remainingMs = Math.max(0, durationMs - elapsedTimeMs);
+                const remainingSeconds = Math.ceil(remainingMs / 1000);
 
-  // Remove operator
-  const removeOperator = (idToRemove) => {
-    if (isSpectator) return;
-    let itemRemoved = false;
-    const newEquation = equation.filter(item => {
-        if (item.id === idToRemove && item.type === 'operator') {
-            itemRemoved = true;
-            return false;
+                setTimeLeft(remainingSeconds);
+
+                if (remainingMs <= 0) {
+                    setIsTimeUp(true); // Set time up state
+                    clearInterval(timerIntervalRef.current);
+                    timerIntervalRef.current = null;
+                }
+            }, 500);
+
+        } else if (!gameHasStarted || isTimeUp) {
+             if (timerIntervalRef.current) { clearInterval(timerIntervalRef.current); timerIntervalRef.current = null; }
+             if (!gameHasStarted) { setTimeLeft(gameDuration); } // Show full duration before start
         }
-        return true;
-    });
-    if (itemRemoved) {
+
+        return () => { if (timerIntervalRef.current) { clearInterval(timerIntervalRef.current); timerIntervalRef.current = null; } };
+    }, [gameHasStarted, serverStartTime, gameDuration, isTimeUp]);
+
+    // Effect 4: Handling Time Up State
+    useEffect(() => {
+        if (isTimeUp) {
+            console.log("Time's up! Game ended. User can now navigate.");
+            // Just set the state, the UI will show the button
+        }
+    }, [isTimeUp]);
+
+
+    // --- Game Logic Functions ---
+    const emitUpdate = (type, payload) => {
+        if (socketRef.current?.connected && !isSpectator && gameHasStarted && !isTimeUp) {
+            socketRef.current.emit(type, { roomId, playerId, ...payload });
+        }
+    }
+
+    const addOperator = (op) => {
+        if (isSpectator || !gameHasStarted || isTimeUp) return;
+        const newId = `op-${Date.now()}-${Math.random().toString(16).slice(2)}`;
+        const newItem = { id: newId, value: op, type: 'operator' };
+        const newEquation = [...equation, newItem];
+        setState(s => [...s, newEquation.map(e => e.value).join("")]);
         setEquation(newEquation);
         emitUpdate('updateEquation', { equation: newEquation });
-    } else {
-        console.warn(`Attempted to remove item with id ${idToRemove}, but it wasn't found or wasn't an operator.`);
+    };
+
+    const removeOperator = (idToRemove) => {
+        if (isSpectator || !gameHasStarted || isTimeUp) return;
+        const newEquation = equation.filter(item => item.id !== idToRemove || item.type !== 'operator');
+        if (newEquation.length < equation.length) {
+            setState(s => [...s, newEquation.map(e => e.value).join("")]);
+            setEquation(newEquation);
+            emitUpdate('updateEquation', { equation: newEquation });
+        }
+    };
+
+    const handleDragEnd = (event) => {
+        if (isSpectator || !gameHasStarted || isTimeUp) return;
+        const { active, over } = event;
+        if (!over || active.id === over.id) return;
+        const activeItem = equation.find(item => item.id === active.id);
+        if (!activeItem || activeItem.type !== 'operator') return;
+
+        const oldIndex = equation.findIndex(item => item.id === active.id);
+        const newIndex = equation.findIndex(item => item.id === over.id);
+        if (oldIndex === -1 || newIndex === -1) return;
+
+        let potentialEq = arrayMove(equation, oldIndex, newIndex);
+        const originalNums = equation.filter(i => i.type === 'number').map(i => i.id);
+        const newNums = potentialEq.filter(i => i.type === 'number').map(i => i.id);
+        if (!arraysEqual(originalNums, newNums)) { console.warn("Invalid move: Number order changed."); return; }
+
+        setState(s => [...s, potentialEq.map(e => e.value).join("")]);
+        setEquation(potentialEq);
+        emitUpdate('updateEquation', { equation: potentialEq });
+    };
+
+    const calculateResult = () => {
+        if (isSpectator || !gameHasStarted || isTimeUp) return;
+        let calculatedResult; let resultMessage = ''; let equationString = '';
+        try {
+            equation.forEach(item => { equationString += operatorValues[item.value] || item.value; });
+            if (equation.length === 0) throw new Error("Equation is empty.");
+            if (!equationString && equation.length > 0) throw new Error("Invalid characters in equation.");
+            // Basic Validations
+            if (/^[\*\/\^\)]/.test(equationString) || /[\+\-\*\/\^\(]$/.test(equationString)) throw new Error("Starts/Ends with invalid operator.");
+            if (/[\+\-\*\/^]{2,}/.test(equationString.replace(/\*\*+/g,'^'))) throw new Error("Consecutive operators.");
+            if ((equationString.match(/\(/g) || []).length !== (equationString.match(/\)/g) || []).length) throw new Error("Mismatched parentheses.");
+            if (/\([\*\/\^\)]/.test(equationString) || /[\+\-\*\/\^\(]\)/.test(equationString)) throw new Error("Invalid ops near parentheses.");
+            if (/\(\)/.test(equationString)) throw new Error("Empty parentheses.");
+
+            console.warn("Using Function constructor. Ensure input is controlled.");
+            calculatedResult = new Function(`return ${equationString}`)();
+
+            if (typeof calculatedResult !== 'number' || !isFinite(calculatedResult)) throw new Error("Calculation resulted in non-finite number.");
+            calculatedResult = Math.round(calculatedResult * 10000) / 10000;
+            resultMessage = calculatedResult === 100 ? `Success! You reached 100!` : `Result: ${calculatedResult} (Goal: 100)`;
+
+            if (calculatedResult === 100 && socketRef.current?.connected) {
+                console.log("Local Success! Emitting playerSolved");
+                socketRef.current.emit('playerSolved', { roomId, playerId });
+            }
+        } catch (error) {
+            console.error("Calculation error:", error, "Equation string:", equationString);
+            resultMessage = `Error: ${error.message || "Invalid equation."}`; calculatedResult = null;
+        }
+        setResult(resultMessage);
+        emitUpdate('updateResult', { result: resultMessage });
+    };
+
+    const resetGame = () => {
+        if (isSpectator || !gameHasStarted || isTimeUp) return;
+        const resetEquation = [...initialNumbers];
+        setState(s => [...s, resetEquation.map(e => e.value).join("")]);
+        setEquation(resetEquation);
+        setResult(null);
+        emitUpdate('updateEquation', { equation: resetEquation });
+        emitUpdate('updateResult', { result: null });
+    };
+
+    const handleStartGame = () => {
+        if (!isSpectator && isConnected && roomId && roomUsers.length >= 2 && !gameHasStarted) {
+            setGameStartError(null);
+            socketRef.current.emit('startGame', roomId);
+        } else {
+             let errorMsg = "Cannot start game.";
+             if (!isConnected) errorMsg = "Not connected to server.";
+             else if (roomUsers.length < 2) errorMsg = "Need at least 2 users.";
+             else if (gameHasStarted) errorMsg = "Game already in progress.";
+             setGameStartError(errorMsg);
+             setTimeout(() => setGameStartError(null), 4000);
+        }
+    };
+
+    // --- Navigation Handler ---
+    const handleGoToReview = async () => {
+        if (isNavigating) return;
+        setIsNavigating(true);
+        console.log("Attempting to navigate to review page...");
+
+        try {
+            if (!isSpectator && playerId) {
+                console.log("Saving player state before navigating...");
+                // Ensure stateDiffMakerFromState handles potential empty states array
+                const stateHistory = states.length > 0 ? states : [initialNumbers.map(e => e.value).join("")];
+                await fetch(`/api/games/${playerId}/review`, {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({
+                        username: playerId,
+                        digits: initialNumbers.map(e => e.value),
+                        state: stateDiffMakerFromState(initialNumbers.map(e => e.value), stateHistory)
+                    })
+                });
+                console.log("Player state save request sent.");
+            }
+            router.push(`/review/${roomId}`);
+        } catch (error) {
+            console.error("Error during save or navigation:", error);
+            // Navigate anyway if saving fails? Or show error?
+            router.push(`/review/${roomId}`);
+        }
+        // No need to setIsNavigating(false) typically, as component will unmount
+    };
+
+
+    // --- Memoized Sorted Player List for Rendering ---
+    const rankedPlayers = useMemo(() => {
+        const players = roomUsers.filter(user => user.role === 'player' && user.playerId);
+        const defaultUnsolvedRank = (gameDuration + 1) * 1000;
+        const getRankKey = (player) => player.solvedTime === null ? defaultUnsolvedRank : player.solvedTime;
+        return players.sort((a, b) => getRankKey(a) - getRankKey(b));
+    }, [roomUsers, gameDuration]);
+
+    // --- Render Functions ---
+    const renderRankedUser = (player, index, isFinal = false) => {
+        const rank = index + 1;
+        let status = "Playing...";
+        if (player.solvedTime !== null) { status = `Solved: ${(player.solvedTime / 1000).toFixed(2)}s`; }
+        else if (isTimeUp) { status = "Time Up"; }
+
+        const baseClassName = isFinal ? "final-leaderboard-item" : "user-panel-item";
+        const detailsClassName = isFinal ? "final-leaderboard-details" : "user-details ranked";
+        const idClassName = isFinal ? "final-player-id" : "player-id";
+        const statusClassName = isFinal ? "final-player-status" : "player-status";
+
+        return (
+            <motion.li key={player.uniqueId} className={`${baseClassName} ${player.role} ${player.solvedTime !== null ? 'solved' : ''}`}
+                initial={{ opacity: 0, x: -15 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: 15 }} layout >
+                <span className={isFinal ? "final-rank-number" : "rank-number"}>{rank}.</span>
+                <span className={`role-icon player-icon`}>🎮</span>
+                <span className={detailsClassName}>
+                    <span className={idClassName}>{player.playerId}</span>
+                    <span className={statusClassName}>{status}</span>
+                </span>
+            </motion.li>
+        );
+    };
+
+    const renderLobbyUser = (user) => {
+         return (
+            <motion.li key={user.uniqueId} className={`user-panel-item ${user.role}`}
+                initial={{ opacity: 0, x: -15 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: 15 }} layout >
+                <span className={`role-icon ${user.role === 'player' ? 'player-icon' : 'spectator-icon'}`}>
+                    {user.role === 'player' ? '🎮' : '👁️'}
+                </span>
+                <span className="user-details">
+                    {user.role === 'player' ? `Player: ${user.playerId || '...'}` : `Spectator (Watching ${user.targetPlayerId || '...'})`}
+                </span>
+            </motion.li>
+        );
     }
-  };
 
-  // Handle drag end (JavaScript Version - no DragEndEvent type)
-  const handleDragEnd = (event) => {
-    if (isSpectator) return;
-    const { active, over } = event;
-    console.log("DND: DragEnd event", event);
-    if (!over || active.id === over.id) return;
+    // --- Main Render ---
+    const canStartGame = !isSpectator && isConnected && roomUsers.length >= 2 && !gameHasStarted;
 
-    const activeItem = equation.find(item => item.id === active.id);
-    if (!activeItem || activeItem.type !== 'operator') {
-        console.warn("DND: Attempted to drag a non-operator:", activeItem);
-        return;
-    }
+    return (
+        <div className="game-container">
+            <Meteors />
 
-    const oldIndex = equation.findIndex(item => item.id === active.id);
-    const newIndex = equation.findIndex(item => item.id === over.id);
-    if (oldIndex === -1 || newIndex === -1) {
-        console.error("DND: Indices not found for drag items.");
-        return;
-    }
+            {/* --- Top Left User Panel --- */}
+            <div className="user-panel">
+                <h3 className="user-panel-title">
+                    {gameHasStarted ? `Leaderboard (${rankedPlayers.length})` : `Connected Users (${roomUsers.length})`}
+                </h3>
+                <ul className="user-panel-list">
+                    <AnimatePresence>
+                        {gameHasStarted
+                            ? rankedPlayers.map((player, index) => renderRankedUser(player, index, false)) // isFinal = false for panel
+                            : roomUsers.map(renderLobbyUser)
+                        }
+                    </AnimatePresence>
+                    {gameHasStarted && rankedPlayers.length === 0 && <p className="no-users-message">No players yet.</p>}
+                    {!gameHasStarted && roomUsers.length === 0 && <p className="no-users-message">Waiting for users...</p>}
+                </ul>
+                {!isSpectator && !gameHasStarted && (
+                     <motion.button className="start-game-button-panel" onClick={handleStartGame} disabled={!canStartGame}
+                         whileHover={canStartGame ? { scale: 1.05 } : {}} whileTap={canStartGame ? { scale: 0.95 } : {}}
+                         initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.3 }} >
+                         {roomUsers.length < 2 ? 'Waiting for Players...' : 'Start Game'}
+                     </motion.button>
+                 )}
+                {gameHasStarted && !isTimeUp && ( <motion.p className="game-status-message" initial={{ opacity: 0 }} animate={{ opacity: 1 }}>Game In Progress</motion.p> )}
+                {isTimeUp && ( <motion.p className="game-status-message timeup" initial={{ opacity: 0 }} animate={{ opacity: 1 }}>Game Over</motion.p> )}
+                {gameStartError && ( <p className="game-start-error-panel">{gameStartError}</p> )}
+            </div>
 
-    let potentiallyNewEquation = arrayMove(equation, oldIndex, newIndex);
-
-    // --- Validation: Ensure numbers maintain relative order ---
-    const originalNumberIds = equation.filter(item => item.type === 'number').map(item => item.id);
-    const newNumberIds = potentiallyNewEquation.filter(item => item.type === 'number').map(item => item.id);
-    if (!arraysEqual(originalNumberIds, newNumberIds)) {
-        console.warn("DND: Invalid move - Number order would change. Reverting.");
-        return;
-    }
-    // --- End Validation ---
-    setState(s=>[...s, potentiallyNewEquation.map(e=>e.value).join("")]);
-
-    setEquation(potentiallyNewEquation);
-    
-    emitUpdate('updateEquation', { equation: potentiallyNewEquation });
-  };
-
-
-  // Calculate result (JavaScript Version)
-  const calculateResult = () => {
-    if (isSpectator) return;
-    let calculatedResult;
-    let resultMessage = '';
-    let equationString = '';
-
-    try {
-      equation.forEach(item => {
-        equationString += operatorValues[item.value] || item.value;
-      });
-      console.log("Calculating:", equationString);
-
-       // --- Input Validations (Keep these) ---
-       if (!equationString) throw new Error("Equation is empty.");
-       if (/^[\*\/\^\)]/.test(equationString) || /[\+\-\*\/\^\(]$/.test(equationString)) throw new Error("Equation starts or ends invalidly.");
-       if (/[\+\-\*\/^]{2,}/.test(equationString.replace(/\*\*+/g,'^'))) throw new Error("Consecutive operators.");
-       if ((equationString.match(/\(/g) || []).length !== (equationString.match(/\)/g) || []).length) throw new Error("Mismatched parentheses.");
-       if (/\([\*\/\^\)]/.test(equationString) || /[\+\-\*\/\^\(]\)/.test(equationString)) throw new Error("Invalid operator placement near parentheses.");
-       if (/\(\)/.test(equationString)) throw new Error("Empty parentheses found.");
-
-      // --- EVAL WARNING (Keep this) ---
-      console.warn("Using eval() for calculation. Ensure input is strictly controlled via UI. Consider a math parser library for production.");
-      calculatedResult = eval(equationString);
-      // --- End Warning ---
-
-      if (typeof calculatedResult !== 'number' || !isFinite(calculatedResult)) {
-        throw new Error(`Calculation Result Invalid: ${calculatedResult}`);
-      }
-      calculatedResult = Math.round(calculatedResult * 10000) / 10000;
-
-      if (calculatedResult === 100) {
-        resultMessage = `Success! You reached 100!`;
-      } else {
-        resultMessage = `Result: ${calculatedResult} (Goal: 100)`;
-      }
-
-    } catch (error) {
-      console.error("Calculation error:", error);
-      resultMessage = `Error: ${error.message || "Invalid equation."}`;
-      calculatedResult = null;
-    }
-
-    setResult(resultMessage);
-    emitUpdate('updateResult', { result: resultMessage });
-  };
-
-  // Reset game (JavaScript Version)
-  const resetGame = () => {
-    if (isSpectator) return;
-    const resetEquation = [...initialNumbers];
-    const resetResult = null;
-    setEquation(resetEquation);
-    setResult(resetResult);
-    emitUpdate('updateEquation', { equation: resetEquation });
-    emitUpdate('updateResult', { result: resetResult });
-  };
-
-
-  // --- Render (JSX remains the same) ---
-  return (
-    <div className="min-h-screen bg-gradient-to-b from-[#0B0E18] to-[#1A1B41] text-white flex flex-col relative overflow-hidden">
-      <Meteors />
-      {/* Navigation Bar */}
-      <nav className="bg-[#111827] py-4 px-6 shadow-md relative z-10">
-         <h1 className="text-center text-xl font-bold text-[#8B5CF6]">
-          Hactoclash - {isSpectator ? `Spectating Player ${spectatingPlayerId}` : `Player ${playerId}`} (Room: {roomId})
-          {/* Connection Status Indicator */}
-          <span
-            className={`ml-3 inline-block w-3 h-3 rounded-full ${isConnected ? 'bg-green-500 animate-pulse' : 'bg-red-500'}`}
-            title={isConnected ? 'Connected' : 'Disconnected'}
-          ></span>
-        </h1>
-      </nav>
-
-      {/* Timer Display */}
-      <div className="absolute top-4 right-4 bg-[#1E293B] text-[#8B5CF6] p-4 rounded-xl shadow-lg text-center z-20">
-        <p className="text-lg font-bold">Time Left</p>
-        <p className="text-3xl font-extrabold">{timeLeft}s</p>
-      </div>
-
-      {/* Main Game Area */}
-      <div className="flex-grow flex flex-col items-center justify-center p-4 relative z-10">
-        <div className="w-full max-w-3xl mx-auto">
-
-          {/* Equation Display Area */}
-          <div className="bg-[#111827]/60 backdrop-blur-md p-6 rounded-xl mb-8 border border-[#1E293B] min-h-[100px]">
-            <h2 className="text-2xl font-bold mb-6 text-center">
-                {isSpectator ? `Player ${spectatingPlayerId}'s Equation` : 'Your Equation'}
-            </h2>
-
-            {/* Drag and Drop Context */}
-            <DndContext
-              sensors={sensors}
-              collisionDetection={closestCenter}
-              onDragEnd={handleDragEnd}
-            >
-              <SortableContext
-                items={equation.map(item => item.id)}
-                strategy={horizontalListSortingStrategy}
-              >
-                {/* Container for Sortable Items */}
-                <div className="flex flex-wrap justify-center items-center gap-3 mb-4 p-2 bg-gray-900/30 rounded min-h-[60px]">
-                  {/* Display Placeholder or Equation Items */}
-                  {equation.length === 0 && !isSpectator && (
-                    <p className="text-gray-400 italic">Add operators below.</p>
-                  )}
-                   {equation.length === 0 && isSpectator && (
-                    <p className="text-gray-400 italic">Waiting for player action...</p>
-                  )}
-                  {/* Render each item using SortableItem */}
-                  {equation.map(item => (
-                    <SortableItem
-                      key={item.id}
-                      id={item.id}
-                      value={item.value}
-                      isOperator={item.type === 'operator'}
-                      isFixed={item.type === 'number'}
-                      onRemove={removeOperator}
-                      isSpectator={isSpectator}
-                    />
-                  ))}
-                </div>
-              </SortableContext>
-            </DndContext>
-
-            {/* Hint Text */}
-            {!isSpectator && (
-              <div className="text-sm text-gray-400 mt-2 text-center">
-                Drag operators to rearrange. Click (×) to remove. Numbers are fixed.
-              </div>
+            {/* --- Top Right Timer --- */}
+            {(gameHasStarted || isTimeUp) && (
+                 <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="timer-display">
+                    <p className="timer-label">Time Left</p>
+                    <p className={`timer-value ${timeLeft <= 10 && !isTimeUp ? 'low-time' : ''} ${isTimeUp ? 'timeup-value' : ''}`}>{timeLeft}s</p>
+                </motion.div>
             )}
-            {isSpectator && (
-              <div className="text-sm text-yellow-400 mt-2 text-center">
-                You are spectating. Controls are disabled.
-              </div>
-            )}
-          </div>
 
-          {/* Operator Selection (Only for Players) */}
-          {!isSpectator && (
-            <div className="bg-[#111827]/60 backdrop-blur-md p-6 rounded-xl mb-8 border border-[#1E293B]">
-              <h2 className="text-2xl font-bold mb-6 text-center">Add Operators</h2>
-              <div className="flex flex-wrap justify-center gap-3">
-                {availableOps.map(op => (
-                  <motion.button
-                    key={op}
-                    className="w-16 h-16 bg-[#8B5CF6] rounded-xl text-xl font-bold flex items-center justify-center disabled:opacity-50 disabled:cursor-not-allowed"
-                    onClick={() => addOperator(op)}
-                    whileHover={{ scale: 1.1, boxShadow: "0 0 15px rgba(138, 91, 246, 0.5)" }}
-                    whileTap={{ scale: 0.95 }}
-                    disabled={isSpectator}
-                    aria-label={`Add operator ${op}`}
-                  >
-                    {op}
-                  </motion.button>
-                ))}
-              </div>
+            {/* --- Top Center Header --- */}
+            <nav className="game-header">
+                <h1>
+                    Hactoclash - {isSpectator ? `Spectating ${spectatingPlayerId}` : `Player ${playerId}`} (Room: {roomId})
+                    <span className={`connection-indicator ${isConnected ? 'connected' : 'disconnected'}`} title={isConnected ? 'Connected' : 'Disconnected'}></span>
+                </h1>
+            </nav>
+
+            {/* --- Main Game Area (Centered) --- */}
+            <div className="main-game-area">
+                <AnimatePresence mode="wait">
+                    {!gameHasStarted ? (
+                        <motion.div key="waiting" className="waiting-message"
+                             initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -20 }}>
+                            <h2>Waiting for game to start...</h2>
+                            <p>{isSpectator ? 'Waiting for the player to start.' : roomUsers.length < 2 ? 'Need at least 2 users to start.' : 'Press "Start Game" when ready.'}</p>
+                            <div className="spinner">⚙️</div>
+                        </motion.div>
+                    ) : (
+                        <motion.div key="game-active" className="active-game-content"
+                             initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
+                            {/* Equation Box */}
+                            <div className="equation-box">
+                                <h2 className="box-title">{isSpectator ? `Player ${spectatingPlayerId}'s Equation` : 'Your Equation'}</h2>
+                                <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
+                                    <SortableContext items={equation.map(item => item.id)} strategy={horizontalListSortingStrategy}>
+                                        <div className="equation-items-container">
+                                            {equation.map(item => (
+                                                <SortableItem key={item.id} id={item.id} value={item.value}
+                                                            isOperator={item.type === 'operator'} isFixed={item.type === 'number'}
+                                                            onRemove={removeOperator} isSpectator={isSpectator} isTimeUp={isTimeUp} />
+                                            ))}
+                                            {equation.length === 0 && <p className="equation-placeholder">{isSpectator ? "Waiting..." : "Build your equation!"}</p>}
+                                        </div>
+                                    </SortableContext>
+                                </DndContext>
+                                {!isSpectator && !isTimeUp && <div className="hint-text">Drag operators (purple). Numbers (grey) are fixed.</div>}
+                                {isSpectator && <div className="hint-text spectator">Spectating.</div>}
+                                {isTimeUp && <div className="hint-text timeup">Time's Up!</div>}
+                            </div>
+
+                            {/* Operator Selection */}
+                            {!isSpectator && !isTimeUp && (
+                                <div className="operators-box">
+                                    <h2 className="box-title">Add Operators</h2>
+                                    <div className="operators-grid">
+                                        {availableOps.map(op => ( <motion.button key={op} className="operator-button" onClick={() => addOperator(op)} whileHover={{ scale: 1.1 }} whileTap={{ scale: 0.95 }}>{op}</motion.button> ))}
+                                    </div>
+                                </div>
+                            )}
+
+                            {/* Control Buttons */}
+                            <div className="control-buttons">
+                                <motion.button className="game-button calculate" onClick={calculateResult} whileHover={(isSpectator || isTimeUp) ? {} : { scale: 1.05 }} whileTap={(isSpectator || isTimeUp) ? {} : { scale: 0.95 }} disabled={isSpectator || isTimeUp}>Calculate</motion.button>
+                                <motion.button className="game-button reset" onClick={resetGame} whileHover={(isSpectator || isTimeUp) ? {} : { scale: 1.05 }} whileTap={(isSpectator || isTimeUp) ? {} : { scale: 0.95 }} disabled={isSpectator || isTimeUp}>Reset</motion.button>
+                            </div>
+
+                            {/* Result Display */}
+                            {result && (
+                                <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="result-display">
+                                    <p className={`result-text ${result.startsWith('Success') ? 'success' : result.startsWith('Error') ? 'error' : ''}`}>{result}</p>
+                                </motion.div>
+                            )}
+                        </motion.div> // End Active Game
+                    )}
+                </AnimatePresence>
+
+                 {/* --- Updated Time's Up Overlay --- */}
+                 {isTimeUp && (
+                     <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="timeup-overlay">
+                         <motion.div initial={{ scale: 0.8, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} transition={{ delay: 0.2, type: 'spring', stiffness: 100 }} className="timeup-message-box with-leaderboard">
+                            <p className="timeup-title">Time's up!</p>
+                            <p className="timeup-subtitle">Final Standings:</p>
+                            <div className="final-summary-container">
+                                <div className="final-leaderboard">
+                                     <ul className="final-leaderboard-list">
+                                         <AnimatePresence>
+                                             {rankedPlayers.map((player, index) => renderRankedUser(player, index, true))} {/* isFinal = true */}
+                                         </AnimatePresence>
+                                         {rankedPlayers.length === 0 && <p className="no-users-message final">No players participated.</p>}
+                                     </ul>
+                                </div>
+                                <div className="final-button-container">
+                                     <motion.button className="game-button view-analysis-button" onClick={handleGoToReview} disabled={isNavigating} whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }} >
+                                         {isNavigating ? "Loading..." : "View Analysis"}
+                                     </motion.button>
+                                </div>
+                            </div>
+                        </motion.div>
+                    </motion.div>
+                )}
             </div>
-          )}
 
-          {/* Control Buttons (Calculate, Reset) */}
-          <div className="flex justify-center gap-6 mb-8">
-            <motion.button
-              className="px-8 py-4 bg-[#8B5CF6] rounded-xl text-lg font-semibold disabled:opacity-50 disabled:cursor-not-allowed"
-              onClick={calculateResult}
-              whileHover={isSpectator || isTimeUp ? {} : { scale: 1.05, boxShadow: "0 0 15px rgba(138, 91, 246, 0.5)" }}
-              whileTap={isSpectator || isTimeUp ? {} : { scale: 0.95 }}
-              disabled={isSpectator || isTimeUp}
-            >
-              Calculate
-            </motion.button>
-
-            <motion.button
-              className="px-8 py-4 bg-[#4A5568] hover:bg-[#2D3748] rounded-xl text-lg font-semibold disabled:opacity-50 disabled:cursor-not-allowed"
-              onClick={resetGame}
-              whileHover={isSpectator ? {} : { scale: 1.05 }}
-              whileTap={isSpectator ? {} : { scale: 0.95 }}
-              disabled={isSpectator}
-            >
-              Reset
-            </motion.button>
-          </div>
-
-          {/* Result Display Area */}
-          {result && (
-            <div className="text-center p-4 bg-[#111827]/60 backdrop-blur-md rounded-xl border border-[#1E293B] min-h-[50px] flex items-center justify-center">
-              <p className={`text-xl font-semibold ${result.startsWith('Success') ? 'text-green-400' : result.startsWith('Error') ? 'text-red-400' : ''}`}>
-                {result}
-              </p>
-            </div>
-          )}
-
-          {/* Timer End Message */}
-          {isTimeUp && (
-            <div className="text-center p-4 bg-red-600 text-white rounded-xl mt-4">
-              <p className="text-xl font-bold">Time's up! Redirecting to post-game analysis...</p>
-            </div>
-          )}
+             {/* Bottom Left Icon */}
+             <div className="bottom-left-icon">N</div>
         </div>
-      </div>
-    </div>
-  );
+    );
 }

@@ -1,0 +1,150 @@
+/* gameStyles.css - Complete Styles with Final Leaderboard in Overlay */
+
+/* --- Top Left User Panel --- */
+.user-panel {
+    position: absolute; top: 15px; left: 15px; width: 280px; background-color: rgba(17, 24, 39, 0.8);
+    backdrop-filter: blur(8px); border-radius: 8px; padding: 12px 15px; border: 1px solid #374151; z-index: 20;
+    color: #D1D5DB; max-height: calc(100vh - 30px); display: flex; flex-direction: column; box-shadow: 0 4px 15px rgba(0, 0, 0, 0.3);
+}
+.user-panel-title { font-size: 0.9rem; font-weight: 600; color: #9CA3AF; margin-bottom: 8px; padding-bottom: 6px; border-bottom: 1px solid #374151; text-align: left; flex-shrink: 0; }
+.user-panel-list { list-style: none; padding: 0; margin: 0 0 10px 0; overflow-y: auto; max-height: 150px; flex-grow: 1; }
+.user-panel-list::-webkit-scrollbar { width: 4px; }
+.user-panel-list::-webkit-scrollbar-track { background: transparent; }
+.user-panel-list::-webkit-scrollbar-thumb { background-color: #4B5563; border-radius: 2px; }
+.user-panel-item { display: flex; align-items: center; padding: 4px 0; margin-bottom: 2px; font-size: 0.8rem; transition: color 0.2s ease; }
+.user-panel-item:hover { color: #E5E7EB; }
+.user-panel-item .role-icon { margin-right: 6px; font-size: 0.9rem; flex-shrink: 0; }
+.user-panel-item .user-details { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; flex-grow: 1;}
+/* Leaderboard specific in panel */
+.user-panel-item .rank-number { font-weight: 600; color: #9CA3AF; margin-right: 8px; min-width: 18px; text-align: right; flex-shrink: 0; }
+.user-panel-item .user-details.ranked { display: flex; justify-content: space-between; align-items: center; width: 100%; }
+.user-panel-item .player-id { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 120px; font-weight: 500; color: #E5E7EB; }
+.user-panel-item .player-status { font-size: 0.7rem; font-style: italic; color: #6B7280; white-space: nowrap; margin-left: 8px; }
+.user-panel-item.solved .player-status { color: #34D399; font-weight: 500; font-style: normal; }
+
+/* Start Button / Status in panel */
+.start-game-button-panel { width: 100%; padding: 6px 10px; font-size: 0.85rem; font-weight: 600; color: white; background-color: #8B5CF6; border: none; border-radius: 4px; cursor: pointer; transition: all 0.2s ease; margin-top: 5px; flex-shrink: 0; }
+.start-game-button-panel:hover:not(:disabled) { background-color: #7c4ff3; box-shadow: 0 0 10px rgba(138, 91, 246, 0.3); }
+.start-game-button-panel:disabled { opacity: 0.5; cursor: not-allowed; background-color: #4B5563; }
+.game-status-message { font-size: 0.85rem; font-weight: 600; text-align: center; margin-top: 10px; padding-top: 8px; border-top: 1px solid #374151; flex-shrink: 0; color: #34D399; }
+.game-status-message.timeup { color: #FBBF24; }
+.game-start-error-panel { font-size: 0.75rem; color: #F87171; text-align: center; margin-top: 4px; }
+.no-users-message { text-align: center; color: #6B7280; font-style: italic; margin-top: 1rem; font-size: 0.875rem; }
+
+/* --- Top Right Timer --- */
+.timer-display { position: absolute; top: 15px; right: 15px; background-color: rgba(30, 41, 59, 0.7); backdrop-filter: blur(8px); color: #E5E7EB; padding: 8px 15px; border-radius: 8px; text-align: center; z-index: 20; border: 1px solid #4B5563; box-shadow: 0 4px 15px rgba(0, 0, 0, 0.3); min-width: 90px; }
+.timer-label { font-size: 0.8rem; font-weight: 600; color: #9CA3AF; margin-bottom: 2px; }
+.timer-value { font-size: 1.75rem; font-weight: 700; color: #A78BFA; line-height: 1; transition: color 0.3s ease; }
+.timer-value.low-time { color: #EF4444; animation: pulse-red 1s cubic-bezier(0.4, 0, 0.6, 1) infinite; }
+.timer-value.timeup-value { color: #6B7280; animation: none; } /* Style for 0s */
+
+/* --- Top Center Header --- */
+.game-header { position: absolute; top: 0; left: 50%; transform: translateX(-50%); width: fit-content; max-width: 60%; background-color: rgba(17, 24, 39, 0.8); backdrop-filter: blur(5px); padding: 8px 25px; border-bottom-left-radius: 8px; border-bottom-right-radius: 8px; z-index: 30; text-align: center; box-shadow: 0 4px 10px rgba(0, 0, 0, 0.3); }
+.game-header h1 { font-size: 1rem; font-weight: 600; color: #C4B5FD; margin: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.connection-indicator { display: inline-block; width: 8px; height: 8px; border-radius: 50%; margin-left: 8px; vertical-align: middle; }
+.connection-indicator.connected { background-color: #34D399; animation: pulse-green 2s infinite; }
+.connection-indicator.disconnected { background-color: #F87171; }
+
+/* --- Main Game Area Centering & Structure --- */
+.main-game-area { display: flex; flex-direction: column; align-items: center; justify-content: center; flex-grow: 1; padding: 20px; padding-top: 70px; padding-bottom: 40px; width: 100%; box-sizing: border-box; }
+
+/* --- Waiting Message --- */
+.waiting-message { text-align: center; color: #D1D5DB; background-color: rgba(30, 41, 59, 0.5); padding: 30px 40px; border-radius: 12px; max-width: 450px; }
+.waiting-message h2 { font-size: 1.5rem; font-weight: 600; margin-bottom: 10px; }
+.waiting-message p { font-size: 1rem; color: #9CA3AF; }
+.waiting-message .spinner { margin-top: 20px; font-size: 2.5rem; color: #8B5CF6; animation: spin 2s linear infinite; }
+
+/* --- Active Game Content Wrapper --- */
+.active-game-content { width: 100%; max-width: 700px; display: flex; flex-direction: column; align-items: center; gap: 25px; }
+
+/* --- General Box Styling --- */
+.equation-box, .operators-box { width: 100%; background-color: rgba(17, 24, 39, 0.6); backdrop-filter: blur(10px); padding: 15px 20px; border-radius: 12px; border: 1px solid #374151; box-shadow: 0 5px 20px rgba(0, 0, 0, 0.2); }
+.box-title { font-size: 1.25rem; font-weight: 600; margin-bottom: 15px; text-align: center; color: #E5E7EB; }
+
+/* --- Equation Items Container --- */
+.equation-items-container { display: flex; flex-wrap: wrap; justify-content: center; align-items: center; gap: 10px; margin-bottom: 15px; padding: 10px; background-color: rgba(55, 65, 81, 0.3); border-radius: 8px; min-height: 65px; border: 1px dashed #4B5563; }
+.equation-placeholder { color: #6B7280; font-style: italic; font-size: 0.9rem; }
+
+/* --- Sortable Item Styling --- */
+.sortable-item { position: relative; padding: 12px 16px; border-radius: 8px; font-size: 1.125rem; font-weight: 700; color: white; transition: transform 0.2s ease, opacity 0.2s ease, box-shadow 0.2s ease; box-shadow: 0 2px 5px rgba(0, 0, 0, 0.2); touch-action: none; }
+.sortable-item.operator { background-color: #8B5CF6; }
+.sortable-item.number { background-color: #374151; }
+.sortable-item.disabled { opacity: 0.6; cursor: default; }
+.sortable-item.dragging { opacity: 0.7; z-index: 50; box-shadow: 0 10px 25px rgba(0, 0, 0, 0.3); transform: scale(1.05); }
+.sortable-item.operator:not(.disabled) { cursor: grab; }
+.sortable-item.operator:not(.disabled):active { cursor: grabbing; }
+
+/* Remove Button */
+.remove-button { position: absolute; top: -8px; right: -8px; background-color: #EF4444; border-radius: 50%; width: 20px; height: 20px; display: flex; align-items: center; justify-content: center; font-size: 0.75rem; font-weight: bold; color: white; z-index: 10; border: none; cursor: pointer; transition: background-color 0.2s ease, transform 0.2s ease; }
+.remove-button:hover { background-color: #DC2626; transform: scale(1.1); }
+
+/* Hint Text */
+.hint-text { font-size: 0.75rem; color: #9CA3AF; margin-top: 8px; text-align: center; }
+.hint-text.spectator { color: #FBBF24; }
+.hint-text.timeup { color: #F87171; font-weight: 600; }
+
+/* --- Operators Box --- */
+.operators-grid { display: flex; flex-wrap: wrap; justify-content: center; gap: 12px; }
+.operator-button { width: 56px; height: 56px; background-color: #8B5CF6; border-radius: 8px; font-size: 1.25rem; font-weight: 700; color: white; display: flex; align-items: center; justify-content: center; border: none; cursor: pointer; transition: all 0.2s ease; }
+.operator-button:hover { background-color: #7c4ff3; transform: translateY(-2px); box-shadow: 0 4px 10px rgba(138, 91, 246, 0.3); }
+.operator-button:active { transform: translateY(0); }
+
+/* --- Control Buttons --- */
+.control-buttons { display: flex; justify-content: center; gap: 20px; width: 100%; }
+.game-button { padding: 12px 28px; border-radius: 8px; font-size: 1rem; font-weight: 600; color: white; border: none; cursor: pointer; transition: all 0.2s ease; min-width: 120px; }
+.game-button.calculate { background-color: #8B5CF6; }
+.game-button.reset { background-color: #4B5563; }
+.game-button.calculate:hover:not(:disabled) { background-color: #7c4ff3; box-shadow: 0 0 15px rgba(138, 91, 246, 0.4); }
+.game-button.reset:hover:not(:disabled) { background-color: #374151; }
+.game-button:disabled { opacity: 0.5; cursor: not-allowed; }
+
+/* --- Result Display --- */
+.result-display { width: 100%; text-align: center; padding: 12px; background-color: rgba(30, 41, 59, 0.7); backdrop-filter: blur(5px); border-radius: 8px; border: 1px solid #4B5563; min-height: 50px; display: flex; align-items: center; justify-content: center; margin-top: 10px; }
+.result-text { font-size: 1.125rem; font-weight: 600; color: #E5E7EB; }
+.result-text.success { color: #34D399; }
+.result-text.error { color: #F87171; }
+
+/* --- Time's Up Overlay --- */
+.timeup-overlay { position: absolute; inset: 0; background-color: rgba(0, 0, 0, 0.8); display: flex; align-items: center; justify-content: center; z-index: 40; backdrop-filter: blur(5px); }
+.timeup-message-box { text-align: center; padding: 30px 40px; background-color: rgba(30, 41, 59, 0.9); color: white; border-radius: 12px; box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5); border: 1px solid #4B5563; }
+.timeup-message-box.with-leaderboard { max-width: 650px; } /* Allow wider box */
+.timeup-title { font-size: 1.75rem; font-weight: 700; margin-bottom: 8px; color: #F87171; }
+.timeup-subtitle { font-size: 1rem; opacity: 0.9; margin-bottom: 15px; }
+
+/* --- Container for Final Summary (Leaderboard + Button) --- */
+.final-summary-container { display: flex; justify-content: space-between; align-items: flex-start; gap: 30px; margin-top: 20px; }
+
+/* --- Final Leaderboard Styling --- */
+.final-leaderboard { flex-grow: 1; max-height: 250px; overflow-y: auto; padding-right: 10px; border-right: 1px solid #4B5563; margin-right: -10px; }
+.final-leaderboard-list { list-style: none; padding: 0; margin: 0; }
+/* Final Leaderboard Item */
+.final-leaderboard-item { display: flex; align-items: center; padding: 5px 0; margin-bottom: 4px; font-size: 0.9rem; border-bottom: 1px solid #37415133; }
+.final-leaderboard-item:last-child { border-bottom: none; }
+.final-leaderboard-item .final-rank-number { font-weight: 600; color: #9CA3AF; margin-right: 10px; min-width: 20px; text-align: right; flex-shrink: 0; }
+.final-leaderboard-item .role-icon { margin-right: 8px; font-size: 1rem; flex-shrink: 0; }
+.final-leaderboard-item .final-leaderboard-details { display: flex; justify-content: space-between; align-items: center; width: 100%; }
+.final-leaderboard-item .final-player-id { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 150px; font-weight: 500; color: #E5E7EB; }
+.final-leaderboard-item .final-player-status { font-size: 0.8rem; font-style: italic; color: #9CA3AF; white-space: nowrap; margin-left: 10px; }
+.final-leaderboard-item.solved .final-player-status { color: #34D399; font-weight: 500; font-style: normal; }
+.final-leaderboard .no-users-message.final { color: #9CA3AF; padding: 10px 0; text-align: left; font-size: 0.85rem; font-style: italic;}
+/* Scrollbar for final list */
+.final-leaderboard::-webkit-scrollbar { width: 5px; }
+.final-leaderboard::-webkit-scrollbar-track { background: #1F293711; }
+.final-leaderboard::-webkit-scrollbar-thumb { background-color: #4B5563; border-radius: 3px; }
+
+/* --- Final Button Container --- */
+.final-button-container { display: flex; align-items: center; justify-content: center; flex-shrink: 0; width: 160px; }
+
+/* --- View Analysis Button Styling --- */
+.view-analysis-button { padding: 10px 20px; border-radius: 8px; font-size: 0.95rem; font-weight: 600; color: white; border: none; cursor: pointer; transition: all 0.2s ease; width: 100%; background-color: #10B981; }
+.view-analysis-button:hover:not(:disabled) { background-color: #059669; box-shadow: 0 0 15px rgba(16, 185, 129, 0.4); }
+.view-analysis-button:disabled { opacity: 0.6; cursor: not-allowed; background-color: #4B5563; }
+
+
+/* --- Bottom Left Icon --- */
+.bottom-left-icon { position: absolute; bottom: 15px; left: 15px; width: 40px; height: 40px; background-color: rgba(17, 24, 39, 0.7); border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: bold; color: #9CA3AF; font-size: 1.2rem; z-index: 20; border: 1px solid #374151; }
+
+/* --- Animation Keyframes --- */
+@keyframes pulse-red { 0%, 100% { opacity: 1; } 50% { opacity: 0.7; } }
+@keyframes pulse-green { 0%, 100% { opacity: 1; } 50% { opacity: 0.6; } }
+@keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
