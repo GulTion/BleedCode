@@ -50,6 +50,12 @@ function generateExpressionsRecursive(digits, start, end) {
     return results;
 }
 
+function removeOuterBrackets(str) {
+  if (str && str.length >= 2 && str.startsWith('(') && str.endsWith(')')) {
+    return str.slice(1, -1);
+  }
+  return str;
+}
 export function findHundredSolutions(digits) {
     if (!Array.isArray(digits) || digits.length !== 6) {
         console.error("Invalid input: Input must be an array of 6 numbers.");
@@ -69,7 +75,7 @@ export function findHundredSolutions(digits) {
         }
     }
 
-    return Array.from(solutions);
+    return Array.from(solutions).map(e=>removeOuterBrackets(e));
 }
 
 export const godLevelSolution = (allSolutions)=>{
