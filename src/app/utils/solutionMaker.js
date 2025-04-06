@@ -98,7 +98,7 @@ export const godLevelSolution = (allSolutions)=>{
     return allSolutions[s];
 }
 
-console.log(godLevelSolution(findHundredSolutions([1,2,1,1,1,2])))
+// console.log(godLevelSolution(findHundredSolutions([1,2,1,1,1,2])))
 
 
 /**
@@ -191,6 +191,21 @@ function countBreaks(expressionString, originalDigitsString) {
   
     return bestSolution;
   }
-  
-  
-// const best = findBestSolution(findHundredSolutions([1,1,1,1,1,2]), "111112");
+
+
+  // Generate an array of size 6 with random values between 1 and 9
+function generateRandomArray() {
+  return Array.from({ length: 6 }, () => Math.floor(Math.random() * 9) + 1);
+}
+
+
+export const generateDigits = ()=>{
+  let digit = generateRandomArray();
+  while(findHundredSolutions(digit).length<=0){ 
+    digit = generateRandomArray()};
+  return digit;
+}
+
+// for(let i=0;i<100;i++) console.log(generateDigits())
+
+// console.log(findHundredSolutions([ 3, 8, 1, 2, 4, 1 ]));

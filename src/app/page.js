@@ -154,13 +154,14 @@ const LandingPage = () => {
               </motion.div>
 
               <div className="flex items-center space-x-4 justify-center lg:justify-start">
-                <motion.button 
-                  whileHover={{ scale: 1.1 }}
-                  className="p-3 bg-gray-800 hover:bg-gray-700 rounded-full transition-colors"
-                  onClick={handleGoogleLogin}
-                >
-                  <FaGoogle className="text-xl" />
-                </motion.button>
+              <motion.button 
+  whileHover={{ scale: 1.1 }}
+  className=" px-6 py-3 bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700 rounded-full shadow-lg hover:shadow-xl transition-all flex items-center space-x-3"
+  onClick={handleGoogleLogin}
+>
+  <FaGoogle className="text-2xl text-white" />
+  <span className="text-lg font-semibold text-white">Google Login</span>
+</motion.button>
                 {/* <motion.button 
                   whileHover={{ scale: 1.1 }}
                   className="p-3 bg-gray-800 hover:bg-gray-700 rounded-full transition-colors"

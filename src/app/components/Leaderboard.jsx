@@ -2,7 +2,7 @@
 
 "use client"; // If using Next.js App Router
 
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 // Using react-icons for potential title/status icons
 import { FaCrown, FaUserGraduate, FaMedal, FaAngleUp, FaAngleDown, FaEquals } from 'react-icons/fa';
 
@@ -50,7 +50,16 @@ const TrendIndicator = ({ trend, change }) => {
 };
 
 const Leaderboard = () => {
-  const currentUserRank = leaderboardData.find(p => p.isCurrentUser)?.rank;
+  const [leaderboard, setLeaderboard] = useState([]);
+  let current = localStorage.getItem("username");
+  console.log(current);
+  
+  // const currentUserRank = leaderboardData.find(p => p.username==current);
+  useEffect(()=>{
+    fetch(`/api/leaderboard`).then(e=>e.json()).then(e=>{
+      setLeaderboard(e);
+    })
+  },[]);
 
   return (
     <div className="p-4 md:p-6 bg-gray-900/80 backdrop-blur-lg rounded-lg shadow-xl border border-purple-500/30 text-white ">
@@ -60,35 +69,35 @@ const Leaderboard = () => {
 
       {/* Header Row */}
       <div className="hidden md:flex items-center text-xs font-semibold text-gray-400 uppercase px-4 py-2 bg-white/5 rounded-t-md mb-1 space-x-4">
-        <div className="w-10 text-center">Rank</div>
+        {/* <div className="w-10 text-center">Ra</div> */}
         <div className="flex-1">Player</div>
         <div className="w-20 text-center">Rating</div>
-        <div className="w-24 text-center">Trend</div>
-        <div className="w-32 text-center">Stats (W/L/D)</div>
+        {/* <div className="w-24 text-center">Trend</div> */}
+        <div className="w-32 text-center">Stats (W/L)</div>
       </div>
 
       {/* Leaderboard Entries */}
       <div className="space-y-1 max-h-[60vh] overflow-y-auto custom-scrollbar pr-2">
-        {leaderboardData.map((player) => (
+        {leaderboard.map((player,i) => (
           <div
-            key={player.rank}
+            key={player?.rank||i}
             className={`flex flex-col md:flex-row items-center px-4 py-2 rounded-md transition-colors duration-150 space-y-1 md:space-y-0 md:space-x-4 ${
-              player.isCurrentUser
+              player.username===current
                 ? 'bg-purple-600/40 border border-purple-400 shadow-lg'
                 : 'bg-gray-800/60 hover:bg-gray-700/70'
             }`}
           >
             {/* Rank */}
-            <div className="w-full md:w-10 text-center font-bold text-lg md:text-base text-purple-300">
+            {/* <div className="w-full md:w-10 text-center font-bold text-lg md:text-base text-purple-300">
               {player.rank}
-            </div>
+            </div> */}
 
             {/* Player Info */}
             <div className="flex-1 flex items-center space-x-2 w-full justify-center md:justify-start">
-                <span className="text-lg md:text-base">{player.flag}</span>
-                <TitleBadge title={player.title} />
-                <span className={`font-medium truncate ${player.isCurrentUser ? 'text-white' : 'text-gray-100'}`}>
-                    {player.name}
+                {/* <span className="text-lg md:text-base">{player.flag}</span> */}
+                {/* <TitleBadge title={player.title} /> */}
+                <span className={`font-medium truncate ${player.username===current ? 'text-white' : 'text-gray-100'}`}>
+                    {player.username}
                 </span>
             </div>
 
@@ -98,23 +107,19 @@ const Leaderboard = () => {
             </div>
 
             {/* Trend */}
-            <div className="w-full md:w-24 flex justify-center">
+            {/* <div className="w-full md:w-24 flex justify-center">
                 <TrendIndicator trend={player.trend} change={player.change} />
-            </div>
+            </div> */}
 
             {/* Stats */}
             <div className="w-full md:w-32 text-center text-xs text-gray-400">
-              {player.stats}
+              W: {player?.wins||0} | L: {player?.losses||0}
             </div>
           </div>
         ))}
       </div>
 
-      {/* Footer/Pagination Placeholder */}
-      <div className="mt-4 text-center text-xs text-gray-500">
-        {currentUserRank ? `Your Rank: ${currentUserRank}` : "You are not ranked yet."}
-        {/* Add Pagination buttons if needed */}
-      </div>
+
 
       {/* Custom Scrollbar Style (Optional) */}
       <style jsx>{`

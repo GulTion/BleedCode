@@ -17,6 +17,7 @@ import { useSearchParams } from 'next/navigation';
 import io from 'socket.io-client';
 import { useRouter } from 'next/navigation';
 import { stateDiffMakerFromState } from '../utils/stateDiff'; // Ensure this utility exists and is correct
+import { generateDigits } from '../utils/solutionMaker';
 
 // --- Constants ---
 const SOCKET_SERVER_URL = "http://localhost:4000"; // Your backend server URL
@@ -26,20 +27,22 @@ const DEFAULT_GAME_DURATION = 60;
 
 // Meteors Component
 function Meteors() {
-    const meteors = new Array(20).fill(true);
+    const [meteorStyles, setMeteorStyles] = useState([]);
+
+    useEffect(() => {
+        const meteors = new Array(20).fill(true).map(() => ({
+            left: `${Math.floor(Math.random() * 100)}vw`,
+            top: `${Math.floor(Math.random() * 100)}vh`,
+            animationDelay: `${Math.random() * 5}s`,
+            animationDuration: `${Math.random() * 5 + 5}s`,
+        }));
+        setMeteorStyles(meteors);
+    }, []);
+
     return (
         <>
-            {meteors.map((el, idx) => (
-                <span
-                    key={idx}
-                    className="meteor"
-                    style={{
-                        left: `${Math.floor(Math.random() * 100)}vw`,
-                        top: `${Math.floor(Math.random() * 100)}vh`,
-                        animationDelay: `${Math.random() * 5}s`,
-                        animationDuration: `${Math.random() * 5 + 5}s`,
-                    }}
-                />
+            {meteorStyles.map((style, idx) => (
+                <span key={idx} className="meteor" style={style} />
             ))}
         </>
     );
@@ -98,11 +101,7 @@ export default function EquationGame() {
     const [isNavigating, setIsNavigating] = useState(false); // Prevent double navigation clicks
 
     // --- Refs ---
-    const initialNumbers = useRef([
-        {id: 'num-1', value: '1', type: 'number'}, {id: 'num-2', value: '2', type: 'number'},
-        {id: 'num-3', value: '3', type: 'number'}, {id: 'num-4', value: '4', type: 'number'},
-        {id: 'num-5', value: '5', type: 'number'}, {id: 'num-6', value: '6', type: 'number'},
-    ]).current;
+    const initialNumbers = useRef(generateDigits().map((value,id)=>({id, value, type:'number'}))).current;
 
     const availableOps = ['+', '-', '×', '÷', '(', ')', '^'];
     const operatorValues = {'+': '+', '-': '-', '×': '*', '÷': '/', '(': '(', ')': ')', '^': '**'};
@@ -122,7 +121,9 @@ export default function EquationGame() {
         // Reset state fully on param change
         setIsSpectator(false); setPlayerId(''); setSpectatingPlayerId(null);
         setEquation([]); setResult(null); setRoomUsers([]);
-        setGameHasStarted(false); setIsTimeUp(false); setTimeLeft(DEFAULT_GAME_DURATION);
+        setGameHasStarted(false); setIsTimeUp(false);
+        
+        setTimeLeft(DEFAULT_GAME_DURATION);
         setGameStartError(null); setState([]);
         setServerStartTime(null); setGameDuration(DEFAULT_GAME_DURATION);
         setIsNavigating(false); // Reset navigation lock
@@ -295,6 +296,7 @@ export default function EquationGame() {
         const newNums = potentialEq.filter(i => i.type === 'number').map(i => i.id);
         if (!arraysEqual(originalNums, newNums)) { console.warn("Invalid move: Number order changed."); return; }
 
+        setState(s => [...s, equation.filter((e,i) => i!=oldIndex).join("")]);
         setState(s => [...s, potentialEq.map(e => e.value).join("")]);
         setEquation(potentialEq);
         emitUpdate('updateEquation', { equation: potentialEq });
