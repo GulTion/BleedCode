@@ -1,0 +1,130 @@
+/* rankedMatchmakingStyles.css */
+
+.matchmaking-container {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 80vh; /* Adjust height as needed */
+    padding: 20px;
+    /* Inherit background from body or set explicitly */
+  }
+  
+  .matchmaking-card {
+    background-color: rgba(30, 41, 59, 0.85); /* slate-800 with opacity */
+    backdrop-filter: blur(10px);
+    border-radius: 16px;
+    padding: 40px 50px;
+    max-width: 450px;
+    width: 100%;
+    text-align: center;
+    border: 1px solid #374151; /* gray-700 */
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.4);
+    color: #E5E7EB; /* gray-200 */
+  }
+  
+  .matchmaking-icon-container {
+    width: 80px;
+    height: 80px;
+    margin: 0 auto 25px auto;
+    background: linear-gradient(145deg, #4f46e5cc, #7c3aedcc); /* Indigo/Violet gradient with opacity */
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    box-shadow: 0 5px 15px rgba(79, 70, 229, 0.3);
+  }
+  
+  .matchmaking-icon {
+    font-size: 2.5rem; /* Adjust size */
+    /* If using an SVG or image, adjust accordingly */
+    color: white;
+    filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.3));
+  }
+  
+  .matchmaking-title {
+    font-size: 1.75rem; /* text-2xl */
+    font-weight: 700; /* font-bold */
+    margin-bottom: 15px;
+    color: white;
+  }
+  
+  .matchmaking-description {
+    font-size: 1rem;
+    color: #9CA3AF; /* gray-400 */
+    margin-bottom: 30px;
+    line-height: 1.6;
+    max-width: 300px;
+    margin-left: auto;
+    margin-right: auto;
+  }
+  
+  .launch-button,
+  .cancel-button {
+    display: inline-block;
+    padding: 12px 30px;
+    border-radius: 50px; /* Pill shape */
+    font-size: 1rem;
+    font-weight: 600;
+    color: white;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    border: none;
+  }
+  
+  .launch-button {
+    background: linear-gradient(to right, #8B5CF6, #6366F1); /* Purple/Indigo */
+    box-shadow: 0 4px 15px rgba(139, 92, 246, 0.3);
+  }
+  .launch-button:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 6px 20px rgba(139, 92, 246, 0.4);
+  }
+  .launch-button:active {
+    transform: translateY(0);
+    box-shadow: 0 4px 15px rgba(139, 92, 246, 0.3);
+  }
+  
+  .matchmaking-status {
+    min-height: 130px; /* Reserve space for status/spinner/button */
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+  }
+  
+  .status-message {
+    font-size: 1.1rem;
+    color: #A5B4FC; /* indigo-300 */
+    margin-bottom: 20px;
+  }
+  
+  .error-message {
+    font-size: 0.9rem;
+    color: #F87171; /* red-400 */
+    margin-top: 10px;
+    margin-bottom: 15px;
+    font-weight: 500;
+  }
+  .error-message.idle {
+      margin-bottom: 25px; /* Adjust spacing when idle */
+  }
+  
+  
+  .spinner.matchmaking {
+      margin-top: 10px;
+      margin-bottom: 25px;
+      font-size: 2rem;
+      color: #8B5CF6; /* purple-500 */
+      animation: spin 1.5s linear infinite;
+  }
+  
+  @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+  
+  .cancel-button {
+    background-color: #4B5563; /* gray-600 */
+    font-size: 0.9rem;
+    padding: 8px 20px;
+  }
+  .cancel-button:hover {
+    background-color: #6B7280; /* gray-500 */
+  }

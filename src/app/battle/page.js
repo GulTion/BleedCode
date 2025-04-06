@@ -21,7 +21,7 @@ import { generateDigits } from '../utils/solutionMaker';
 
 // --- Constants ---
 const SOCKET_SERVER_URL = "http://localhost:4000"; // Your backend server URL
-const DEFAULT_GAME_DURATION = 60;
+const DEFAULT_GAME_DURATION = 15;
 
 // --- Components ---
 
@@ -296,7 +296,7 @@ export default function EquationGame() {
         const newNums = potentialEq.filter(i => i.type === 'number').map(i => i.id);
         if (!arraysEqual(originalNums, newNums)) { console.warn("Invalid move: Number order changed."); return; }
 
-        setState(s => [...s, equation.filter((e,i) => i!=oldIndex).join("")]);
+        setState(s => [...s, equation.filter((e,i) => i!=oldIndex).map(e=>e.value).join("")]);
         setState(s => [...s, potentialEq.map(e => e.value).join("")]);
         setEquation(potentialEq);
         emitUpdate('updateEquation', { equation: potentialEq });
@@ -370,18 +370,23 @@ export default function EquationGame() {
                 console.log("Saving player state before navigating...");
                 // Ensure stateDiffMakerFromState handles potential empty states array
                 const stateHistory = states.length > 0 ? states : [initialNumbers.map(e => e.value).join("")];
-                await fetch(`/api/games/${playerId}/review`, {
+                
+                await fetch(`/api/games/${roomId}/review`, {
                     method: "POST",
                     headers: { "Content-Type": "application/json" },
                     body: JSON.stringify({
                         username: playerId,
                         digits: initialNumbers.map(e => e.value),
-                        state: stateDiffMakerFromState(initialNumbers.map(e => e.value), stateHistory)
+                        state: stateDiffMakerFromState(stateHistory)
                     })
-                });
+                }).then(e=>{
+                    console.log(states);
+            router.push(`/review/${roomId}`);
+
+
+                })
                 console.log("Player state save request sent.");
             }
-            router.push(`/review/${roomId}`);
         } catch (error) {
             console.error("Error during save or navigation:", error);
             // Navigate anyway if saving fails? Or show error?
