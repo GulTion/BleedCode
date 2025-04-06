@@ -39,12 +39,16 @@ const HomePage = () => {
     const handleCreateCustomRoom= ()=>{
       router.push("/battle/create");
     }
+    
 
+    const handleCreateRoom= ()=>{
+      router.push("/battle/ranked");
+    }
     // Data for game mode cards
     const gameModes = [
         //  { title: 'Time Trial', icon: <FaClock className="text-4xl text-yellow-400" />, description: 'Race the clock! Solve as many puzzles as possible before time runs out.' },
         //  { title: 'Blitz Duel (1 Min)', icon: <FaUsers className="text-4xl text-green-400" />, description: 'Face off in lightning-fast 1-minute duels against random opponents.' },
-         { title: 'Ranked Duel', icon: <RiSpaceShipFill className="text-4xl text-blue-400" />, description: 'Climb the ranks! Challenge players globally in real-time rated matches.'},
+         { title: 'Ranked Duel', icon: <RiSpaceShipFill className="text-4xl text-blue-400" />, description: 'Climb the ranks! Challenge players globally in real-time rated matches.', onclick:handleCreateRoom},
          { title: 'Custom Lobby', icon: <FaCog className="text-4xl text-purple-400" />, description: 'Forge your own challenge. Set custom rules and invite friends.',onclick:handleCreateCustomRoom  }
     ];
 
